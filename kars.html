@@ -910,6 +910,7 @@ textarea{resize:vertical;min-height:52px}
 .reg.free .fld:has(.s),.reg.free .acts{display:none}       /* keep */
 .reg.stamp .fld,.reg.stamp .fontrow,.reg.stamp details.styl,.reg.stamp select.stage,.reg.stamp .cs{display:none}
 .fontrow select[data-f]{min-width:130px}
+.xf:not(:empty){margin-left:2px;padding:2px 5px;border-radius:4px;font:600 9.5px/1 var(--mono);letter-spacing:.08em;background:var(--accent-soft);color:var(--accent-text)}
 .fontrow .ocol{width:28px;height:28px;padding:2px}.fontrow:not(:has([data-o]:checked)) .ocol{display:none}
 .fontrow .cs{height:28px;padding:0 9px;gap:6px;font-size:12px}.fontrow .cs svg.i{width:14px;height:14px}
 .fontrow .cs.on{color:var(--accent-text);background:var(--accent-soft);border-color:color-mix(in oklab,var(--accent) 40%,transparent)}
@@ -1240,8 +1241,8 @@ aside{position:relative}
   <span id="peers" class="peers" hidden></span>
   <span id="saved" class="mute small" aria-live="polite"></span>
   <div class="grp out">
-    <button id="export" data-ic="download" disabled>Export page</button>
-    <button id="exportall" disabled>Export chapter</button>
+    <button id="export" data-ic="download" disabled>Export page<span class="xf"></span></button>
+    <button id="exportall" disabled>Export chapter<span class="xf"></span></button>
     <details class="menu"><summary class="btn icon ghost" data-ic="more" aria-label="More" title="More"></summary>
       <div class="pop">
         <button id="saveproj" data-ic="save">Save chapter file (.kars)</button>
@@ -1346,6 +1347,7 @@ aside{position:relative}
       <p class="note">Drag the panel's left edge to make it wider or narrower. Double-click the edge to reset it.</p>
       <h3 class="sec">Pages and lettering</h3>
       <label class="field"><span>Reading order</span><select id="order"><option value="auto">Auto (from the language)</option><option value="rtl">Right to left (manga)</option><option value="ltr">Left to right (manhwa, manhua)</option></select></label>
+      <label class="field"><span>Export as</span><select id="xfmt"><option value="png">PNG: one flat image per page</option><option value="psd">PSD with layers, for Photoshop</option></select></label>
       <label class="field"><span>Long manhwa strips</span><select id="split"><option value="off">Keep each image whole (tall pages are read in parts)</option><option value="big">Cut into large pieces</option><option value="page">Cut into page-size pieces</option></select></label>
       <label class="field"><span>Text size</span><span class="rowx"><input id="size" type="range" min="50" max="200" value="100"><span id="sizeV" class="small mute">100%</span></span></label>
       <h3 class="sec">While you work</h3>
@@ -1499,7 +1501,7 @@ function ask(msg,yes='Continue'){return new Promise(ok=>{const d=$('askd');$('as
 function toast(msg,ms=3500){const t=$('toast');t.textContent=msg;t.style.setProperty('--ms',ms?ms+'ms':'0s');t.dataset.k=t.dataset.k==='1'?'0':'1';t.classList.add('on');clearTimeout(toast.h);if(ms)toast.h=setTimeout(()=>t.classList.remove('on'),ms)}
 
 /* ---------- settings and theme (kept in this browser) ---------- */
-const SET=['lang','tgt','engine','order','auto','split','size','sfx','follow','uiz','dicteng','dfrom','dto'];
+const SET=['lang','tgt','engine','order','auto','split','size','sfx','follow','uiz','dicteng','dfrom','dto','xfmt'];
 let keys={};try{keys=JSON.parse(localStorage.getItem('kars_keys')||'{}');if(!keys.claude&&localStorage.getItem('kars_key'))keys.claude=localStorage.getItem('kars_key')}catch(e){}
 $('engine').value=keys.claude?'claude':'gfree';
 /* opened through the KARS server on this PC: use Claude through your Claude Code sign-in, no key needed */
@@ -2722,14 +2724,50 @@ const snap=async()=>{await stampsReady();return new Promise(ok=>composite().toBl
 async function save(blob,name){if(window.claude){const dl=await claude.use('downloads');
     if(dl){try{await dl.save({filename:name,data:blob})}catch(e){if(e&&e.code!=='cancelled'&&e.code!=='declined')toast('Could not save the file ('+(e.code||'error')+').',6000)}return}}
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-$('export').onclick=async()=>{setView(false);save(await snap(),baseName(pages[cur])+'-kars.png')};
+$('export').onclick=async()=>{setView(false);const psd=$('xfmt').value==='psd',b=$('export');
+  if(!psd)return save(await snap(),baseName(pages[cur])+'-kars.png');
+  b.disabled=true;try{save(await pagePsd(),baseName(pages[cur])+'-kars.psd');toast('Exported the page as a PSD with layers.')}catch(e){toast('Export failed: '+e.message,6000)}finally{b.disabled=!loaded}};
+const xfmtUI=()=>{const t=$('xfmt').value==='psd'?'PSD':'';document.querySelectorAll('#export .xf,#exportall .xf').forEach(e=>e.textContent=t);
+  $('export').title=t?'Save this page as a layered PSD for Photoshop':'Save this page as a PNG';$('exportall').title=t?'Save every page as a layered PSD, in one ZIP':'Save every page as a PNG, in one ZIP'};
+$('xfmt').addEventListener('change',xfmtUI);xfmtUI();
+/* ---------- PSD export, built with ag-psd. Layers, bottom to top: the page, the cleaned bubbles, your paint, stamps, one layer per
+   text box drawn exactly as KARS draws it, and a hidden group with each box as editable Photoshop text (Photoshop redraws those when
+   you show them; it uses the closest font you have if the exact one is missing) ---------- */
+const psdName=r=>{const t=(r.txt||'').replace(/\s+/g,' ').trim();return t.length>40?t.slice(0,39)+'…':t||'Text'};
+const psdFont=r=>{const f=F[fontKey(r)],fam=String(f.f).split(',')[0].replace(/["']/g,'').trim(),w=stOf(r).weight||f.w;return fam.replace(/\s+/g,'')+(w>=700?'-Bold':'-Regular')};
+async function pagePsd(){await needLib('Photoshop');await stampsReady();
+  const W=src.width,H=src.height,pg=pages[cur],mk=(w,h)=>{const c=document.createElement('canvas');c.width=Math.max(1,Math.ceil(w));c.height=Math.max(1,Math.ceil(h));return c};
+  const clampR=e=>{const x0=clamp(Math.floor(e.x0),0,W),y0=clamp(Math.floor(e.y0),0,H),x1=clamp(Math.ceil(e.x1),0,W),y1=clamp(Math.ceil(e.y1),0,H);return x1>x0&&y1>y0?{x0,y0,x1,y1}:null};
+  /* a layer trimmed to its visible pixels, so a mostly empty layer stays small */
+  const trimmed=(c,name)=>{const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let x0=c.width,y0=c.height,x1=-1,y1=-1;
+    for(let y=0;y<c.height;y++){const o=y*c.width;for(let i=0;i<c.width;i++)if(d[(o+i)*4+3]){if(i<x0)x0=i;if(i>x1)x1=i;if(y<y0)y0=y;if(y>y1)y1=y}}
+    if(x1<0)return null;const t=mk(x1-x0+1,y1-y0+1);t.getContext('2d').drawImage(c,-x0,-y0);return{name,canvas:t,left:x0,top:y0}};
+  const layers=[];const page=mk(W,H);page.getContext('2d').drawImage(src,0,0);layers.push({name:'Page',canvas:page});
+  const P=regs.filter(r=>!r.free&&!r.healed&&r.patch&&r.txt.trim()&&!r.editing);
+  if(P.length){const e=clampR({x0:Math.min(...P.map(r=>r.px)),y0:Math.min(...P.map(r=>r.py)),x1:Math.max(...P.map(r=>r.px+r.patch.width)),y1:Math.max(...P.map(r=>r.py+r.patch.height))});
+    if(e){const c=mk(e.x1-e.x0,e.y1-e.y0),x=c.getContext('2d');P.forEach(r=>x.drawImage(r.patch,r.px-e.x0,r.py-e.y0));layers.push({name:'Cleaned bubbles',canvas:c,left:e.x0,top:e.y0})}}
+  if(pg.paint){const t=trimmed(pg.paint,'Paint');if(t)layers.push(t)}
+  const S=regs.filter(r=>r.stamp);
+  if(S.length)layers.push({name:'Stamps',opened:true,children:S.map((r,k)=>{const c=mk(r.w,r.h),x=c.getContext('2d');x.translate(-r.x,-r.y);drawStamp(r,x);return{name:`Stamp ${k+1}`,canvas:c,left:r.x,top:r.y}})});
+  const T=regs.filter(r=>r.txt.trim()&&(r.free||r.patch)),probe=mk(1,1).getContext('2d'),txt=[],edit=[];
+  for(const r of T){const no=regs.indexOf(r)+1;drawText(r,probe);const e=clampR(r._ext||{x0:r.x,y0:r.y,x1:r.x+r.w,y1:r.y+r.h});if(!e)continue;
+    const c=mk(e.x1-e.x0,e.y1-e.y0),x=c.getContext('2d');x.translate(-e.x0,-e.y0);drawText(r,x);txt.push({name:`${no} · ${psdName(r)}`,canvas:c,left:e.x0,top:e.y0});
+    const L=layout(r,probe),st=stOf(r),col=rgbArr(st.color)||r.ink||[17,17,17];
+    edit.push({name:`${no} · ${psdName(r)} (editable)`,hidden:true,text:{text:st.caps?r.txt.toUpperCase():r.txt,transform:[1,0,0,1,r.x,r.y],shapeType:'box',boxBounds:[0,0,r.w,r.h],antiAlias:'smooth',
+      style:{font:{name:psdFont(r)},fontSize:Math.round(L.s),fillColor:{r:col[0],g:col[1],b:col[2]},fauxItalic:!!r.italic,leading:Math.round(L.s*st.lh/100)},
+      paragraphStyle:{justification:st.align==='left'?'left':st.align==='right'?'right':'center'}}})}
+  if(txt.length)layers.push({name:'Translation',opened:true,children:txt});
+  if(edit.length)layers.push({name:'Editable text (hidden)',opened:false,children:edit});
+  const buf=agPsd.writePsd({width:W,height:H,canvas:composite(),children:layers},{invalidateTextLayers:true,generateThumbnail:false});
+  return new Blob([buf],{type:'image/vnd.adobe.photoshop'})}
+const rgbArr=c=>{if(!c)return null;const m=/^#?([0-9a-f]{6})$/i.exec(c);return m?[0,2,4].map(i=>parseInt(m[1].slice(i,i+2),16)):null};
 async function exportChapter(){const btn=$('exportall'),back=cur;btn.disabled=true;
   try{setView(false);exporting=true;const z=new(await needZip())(),used=new Set();
     for(let i=0;i<pages.length;i++){btn.textContent=`Exporting ${i+1}/${pages.length}…`;await show(i);await loadPaint(pages[i]);
-      let n=String(i+1).padStart(3,'0')+'-'+baseName(pages[i])+'.png';while(used.has(n))n='_'+n;used.add(n);z.file(n,await snap())}
-    save(await z.generateAsync({type:'blob'}),chName()+'.zip');toast(`Exported ${pages.length} pages as lossless PNGs.`)}
+      const psd=$('xfmt').value==='psd';let n=String(i+1).padStart(3,'0')+'-'+baseName(pages[i])+(psd?'.psd':'.png');while(used.has(n))n='_'+n;used.add(n);z.file(n,psd?await pagePsd():await snap())}
+    save(await z.generateAsync({type:'blob'}),chName()+'.zip');toast($('xfmt').value==='psd'?`Exported ${pages.length} pages as layered PSDs.`:`Exported ${pages.length} pages as lossless PNGs.`)}
   catch(e){toast('Export failed: '+e.message,6000)}
-  finally{exporting=false;await show(back);btn.disabled=false;btn.textContent='Export chapter'}}
+  finally{exporting=false;await show(back);btn.disabled=false;btn.innerHTML='Export chapter<span class="xf"></span>';xfmtUI()}}
 $('exportall').onclick=()=>{const iss=qaRun();if(iss.some(i=>i.sev==='err'))return qaShow(iss,true);exportChapter()};
 /* a .kars file is a ZIP with the original page files and project.json, so the group can pass work between translator and proofreader */
 $('saveproj').onclick=async()=>{if(!pages.length)return toast('Nothing to save yet.');
