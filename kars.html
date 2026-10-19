@@ -910,6 +910,7 @@ textarea{resize:vertical;min-height:52px}
 .reg.free .fld:has(.s),.reg.free .acts{display:none}       /* keep */
 .reg.stamp .fld,.reg.stamp .fontrow,.reg.stamp details.styl,.reg.stamp select.stage,.reg.stamp .cs{display:none}
 .fontrow select[data-f]{min-width:130px}
+.fontrow .ocol{width:28px;height:28px;padding:2px}.fontrow:not(:has([data-o]:checked)) .ocol{display:none}
 .fontrow .cs{height:28px;padding:0 9px;gap:6px;font-size:12px}.fontrow .cs svg.i{width:14px;height:14px}
 .fontrow .cs.on{color:var(--accent-text);background:var(--accent-soft);border-color:color-mix(in oklab,var(--accent) 40%,transparent)}
 #stage.painting #cv{cursor:copy!important}
@@ -1561,14 +1562,17 @@ function checkpoint(r,key,label){const pg=pageOf(r),g=pg?pg.G:G,last=g.u[g.u.len
   logG({t:'box',box:r,before:bs(r),k:key||'',label:label||BOXLAB[key]||BOXLAB[String(key).split('-')[0]]||'Changed the box'},pg)}
 function setBox(r,s){const g=geo(r);Object.assign(r,JSON.parse(s));syncStyle(r);if(geo(r)!==g){prep(r);return list(),render()}
   syncBox(r);render()}
-function syncBox(r){const q=k=>document.querySelector(`[data-${k}="${r.id}"]`);if(!q('t'))return;q('fp').textContent=r.txt||r.src||'';
-  q('src').value=r.src;q('t').value=r.txt;q('n').value=r.note||'';const sg=q('sg');sg.value=sg.dataset.v=stageOf(r);const ks=q('ks');if(ks)ks.value=r.style||'normal';q('f').value=r.font;q('f').options[0].textContent=`Auto: ${F[autoKey(r)].n}`;q('i').checked=!!r.italic;q('o').checked=!!r.outline;
+/* box id -> its card in the list (filled by list), so a card's fields are found inside it instead of searching the whole page */
+const cardOf=new Map(),inCard=(r,sel)=>{const c=cardOf.get(r.id);return c&&c.isConnected?c.querySelector(sel):document.querySelector(sel)};
+function syncBox(r){const q=k=>inCard(r,`[data-${k}="${r.id}"]`);if(!q('t'))return;q('fp').textContent=r.txt||r.src||'';
+  q('src').value=r.src;q('t').value=r.txt;q('n').value=r.note||'';const sg=q('sg');sg.value=sg.dataset.v=stageOf(r);const ks=q('ks');if(ks)ks.value=r.style||'normal';{const f=q('f');if(![...f.options].some(o=>o.value===r.font))f.add(new Option(fontLabel(r.font),r.font))}q('f').value=r.font;q('f').options[0].textContent=`Auto: ${F[autoKey(r)].n}`;q('i').checked=!!r.italic;q('o').checked=!!r.outline;
+  {const oc=q('oc'),lt=.299*(r.ink||[0,0,0])[0]+.587*(r.ink||[0,0,0])[1]+.114*(r.ink||[0,0,0])[2]>140;if(oc)oc.value=stOf(r).ocolor||autoOutline(r,lt)}
   q('tag').textContent=[r.stamp?'stamp':r.free&&'text box',r.lang&&LN[r.lang],r.style!=='normal'&&r.style,r.flat&&'flat fill'].filter(Boolean).join(' · ');q('t').closest('.reg').classList.toggle('done',!!(r.txt.trim()||r.stamp))}
 /* show a box's text style in its panel */
-function syncStyle(r){const P=document.querySelector(`[data-styl="${r.id}"]`);if(!P)return;const st=stOf(r),hex=c=>'#'+c.map(v=>Math.round(v).toString(16).padStart(2,'0')).join('');
+function syncStyle(r){const P=inCard(r,`[data-styl="${r.id}"]`);if(!P)return;const st=stOf(r),hex=c=>'#'+c.map(v=>Math.round(v).toString(16).padStart(2,'0')).join('');
   const unit={size:'%',thick:'',ow:'',ls:'',lh:'%',angle:'°',glow:''};
   P.querySelectorAll('[data-k]').forEach(el=>{const k=el.dataset.k;if(el.type==='checkbox')el.checked=!!st[k];
-    else if(el.type==='color')el.value=st[k]||(k==='color'?hex(r.ink||[0,0,0]):(.299*(r.ink||[0,0,0])[0]+.587*(r.ink||[0,0,0])[1]+.114*(r.ink||[0,0,0])[2]>140?'#111111':'#ffffff'));
+    else if(el.type==='color')el.value=st[k]||(k==='color'?hex(r.ink||[0,0,0]):k==='ocolor'?autoOutline(r,.299*(r.ink||[0,0,0])[0]+.587*(r.ink||[0,0,0])[1]+.114*(r.ink||[0,0,0])[2]>140):(.299*(r.ink||[0,0,0])[0]+.587*(r.ink||[0,0,0])[1]+.114*(r.ink||[0,0,0])[2]>140?'#111111':'#ffffff'));
     else el.value=st[k];const o=el.nextElementSibling;if(o&&o.tagName==='OUTPUT')o.textContent=st[k]+(unit[k]||'')});
   P.querySelectorAll('[data-al]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.al===st.align))}
 const remove=b=>{const i=regs.indexOf(b);if(i>=0)regs.splice(i,1)};
@@ -1785,11 +1789,36 @@ function composeTiles(){if(!fbo)fbo=gl.createFramebuffer();
     compTiles.forEach(t=>gl.deleteTexture(t.tex));
     compTiles=pageTiles.map(t=>{const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.texStorage2D(gl.TEXTURE_2D,Math.floor(Math.log2(Math.max(t.w,t.h)))+1,gl.RGBA8,t.w,t.h);
       gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);return{...t,tex}})}
-  gl.useProgram(P.tex.p);gl.bindFramebuffer(gl.FRAMEBUFFER,fbo);
-  compTiles.forEach((c,i)=>{gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,c.tex,0);gl.viewport(0,0,c.w,c.h);gl.clearColor(1,1,1,1);gl.clear(gl.COLOR_BUFFER_BIT);
+  composeIn(null)}
+/* draw page + layer into the merged tiles; with R ({x0,y0,x1,y1} in page pixels) only the tiles R touches, and only inside R */
+function composeIn(R){const done=[];gl.useProgram(P.tex.p);gl.bindFramebuffer(gl.FRAMEBUFFER,fbo);if(R)gl.enable(gl.SCISSOR_TEST);
+  compTiles.forEach((c,i)=>{let I=null;if(R){I=cut(R,c);if(!I)return}
+    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,c.tex,0);gl.viewport(0,0,c.w,c.h);if(I)gl.scissor(I.x0-c.x,I.y0-c.y,I.x1-I.x0,I.y1-I.y0);gl.clearColor(1,1,1,1);gl.clear(gl.COLOR_BUFFER_BIT);
     gl.uniformMatrix3fv(P.tex.u.u_m,false,new Float32Array([2/c.w,0,0,0,2/c.h,0,-1-2*c.x/c.w,-1-2*c.y/c.h,1]));  /* 1:1, rows top-down like the uploaded canvases */
-    for(const t of [pageTiles[i],layTiles[i]]){if(!t)continue;gl.bindTexture(gl.TEXTURE_2D,t.tex);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);quads([[c.x,c.y,c.x+c.w,c.y+c.h,0,0,1,1]])}});
-  gl.bindFramebuffer(gl.FRAMEBUFFER,null);compTiles.forEach(c=>{gl.bindTexture(gl.TEXTURE_2D,c.tex);gl.generateMipmap(gl.TEXTURE_2D)})}
+    for(const t of [pageTiles[i],layTiles[i]]){if(!t)continue;gl.bindTexture(gl.TEXTURE_2D,t.tex);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);quads([[c.x,c.y,c.x+c.w,c.y+c.h,0,0,1,1]])}
+    done.push(c)});
+  if(R)gl.disable(gl.SCISSOR_TEST);gl.bindFramebuffer(gl.FRAMEBUFFER,null);done.forEach(c=>{gl.bindTexture(gl.TEXTURE_2D,c.tex);gl.generateMipmap(gl.TEXTURE_2D)})}
+/* the part of rectangle R inside tile t, or null */
+const cut=(R,t)=>{const x0=Math.max(R.x0,t.x),y0=Math.max(R.y0,t.y),x1=Math.min(R.x1,t.x+t.w),y1=Math.min(R.y1,t.y+t.h);return x1>x0&&y1>y0?{x0,y0,x1,y1}:null};
+/* ---------- partial layer updates: typing in a box, styling, moving or drawing one redraws and re-sends only the area around it,
+   not the whole page; anything else (paint, heal, a page switch) still calls render() for a full rebuild ---------- */
+let layerParts=[];
+const boxArea=r=>{const m=Math.max(r.w,r.h)*.5+40;let x0=r.x-m,y0=r.y-m,x1=r.x+r.w+m,y1=r.y+r.h+m;  /* the margin covers outline, glow, rotation and text that overflows */
+  if(r.patch){x0=Math.min(x0,r.px);y0=Math.min(y0,r.py);x1=Math.max(x1,r.px+r.patch.width);y1=Math.max(y1,r.py+r.patch.height)}
+  if(r._ext){x0=Math.min(x0,r._ext.x0);y0=Math.min(y0,r._ext.y0);x1=Math.max(x1,r._ext.x1);y1=Math.max(y1,r._ext.y1)}
+  return{x0:Math.max(0,Math.floor(x0)),y0:Math.max(0,Math.floor(y0)),x1:Math.min(src.width,Math.ceil(x1)),y1:Math.min(src.height,Math.ceil(y1))}};
+function renderBox(...rs){if(!layerDirty)for(const r of rs)if(r)layerParts.push(r.x0!=null?r:{...boxArea(r),box:r});paint();scheduleSave()}
+function partLayer(){const A=[];for(const R of layerParts.splice(0)){const o=A.find(q=>q.x0<=R.x1&&R.x0<=q.x1&&q.y0<=R.y1&&R.y0<=q.y1);  /* merge overlapping areas */
+    if(o){o.x0=Math.min(o.x0,R.x0);o.y0=Math.min(o.y0,R.y0);o.x1=Math.max(o.x1,R.x1);o.y1=Math.max(o.y1,R.y1);if(R.box)o.boxes.push(R.box)}else A.push({...R,boxes:R.box?[R.box]:[]})}
+  if(!layTiles.length||layTiles.length!==pageTiles.length){layerDirty=true;return false}
+  for(const R of A){const w=R.x1-R.x0,h=R.y1-R.y0;if(w<=0||h<=0)continue;
+    lx.save();lx.beginPath();lx.rect(R.x0,R.y0,w,h);lx.clip();lx.clearRect(R.x0,R.y0,w,h);paintLayer(lx);lx.restore();
+    /* the edited box's lettering now reaching past the area (a bigger size, say) needs the full rebuild; neighbours are unchanged outside it */
+    if(R.boxes.some(r=>r._ext&&(r._ext.x0<R.x0&&R.x0>0||r._ext.y0<R.y0&&R.y0>0||r._ext.x1>R.x1&&R.x1<src.width||r._ext.y1>R.y1&&R.y1<src.height))){layerDirty=true;return false}
+    for(const t of layTiles){const I=cut(R,t);if(!I)continue;const iw=I.x1-I.x0,ih=I.y1-I.y0;tmp.width=iw;tmp.height=ih;tmx.clearRect(0,0,iw,ih);tmx.drawImage(lay,I.x0,I.y0,iw,ih,0,0,iw,ih);
+      gl.bindTexture(gl.TEXTURE_2D,t.tex);gl.texSubImage2D(gl.TEXTURE_2D,0,I.x0-t.x,I.y0-t.y,gl.RGBA,gl.UNSIGNED_BYTE,tmp)}
+    if(!compDirty)composeIn(R)}
+  return true}
 /* draw quads given as [x0,y0,x1,y1,u0,v0,u1,v1] in page pixels */
 function quads(list){const n=list.length*24;if(verts.length<n)verts=new Float32Array(n*2);let o=0;
   for(const [x0,y0,x1,y1,u0,v0,u1,v1] of list){verts.set([x0,y0,u0,v0,x1,y0,u1,v0,x0,y1,u0,v1,x0,y1,u0,v1,x1,y0,u1,v0,x1,y1,u1,v1],o);o+=24}
@@ -1817,7 +1846,8 @@ function paint(){if(!raf)raf=requestAnimationFrame(frame)}
 function frame(){raf=0;if(!gl||!loaded||exporting||gl.isContextLost())return;
   const dpr=devicePixelRatio||1,W=Math.max(1,Math.round(cv.clientWidth*dpr)),H=Math.max(1,Math.round(cv.clientHeight*dpr));if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H}
   if(pageDirty){upload(pageTiles,src,true);pageDirty=false;compDirty=true}
-  if(layerDirty){lx.clearRect(0,0,lay.width,lay.height);paintLayer(lx);upload(layTiles,lay,false);layerDirty=false;compDirty=true}
+  if(!layerDirty&&layerParts.length)partLayer();
+  if(layerDirty){lx.clearRect(0,0,lay.width,lay.height);paintLayer(lx);upload(layTiles,lay,false);layerDirty=false;layerParts.length=0;compDirty=true}
   if(compDirty){composeTiles();compDirty=false}
   gl.viewport(0,0,W,H);gl.clearColor(clearCol[0],clearCol[1],clearCol[2],1);gl.clear(gl.COLOR_BUFFER_BIT);
   const s=cam.s*dpr,M=new Float32Array([2*s/W,0,0,0,-2*s/H,0,2*cam.ox*dpr/W-1,1-2*cam.oy*dpr/H,1]),k=1/cam.s,iw=src.width,ih=src.height;
@@ -2103,18 +2133,18 @@ cv.onpointermove=e=>{if(!loaded)return;if(ptrs.has(e.pointerId))ptrs.set(e.point
     if(drag.cx)x1=clamp(x1+dx,x0+12,src.width);else x0=clamp(x0+dx,0,x1-12);
     if(drag.cy)y1=clamp(y1+dy,y0+12,src.height);else y0=clamp(y0+dy,0,y1-12);
     r.x=Math.round(x0);r.y=Math.round(y0);r.w=Math.round(x1)-r.x;r.h=Math.round(y1)-r.y}
-  if(!r.editing){r.editing=true;render()}else paint()};  /* the box leaves the translation layer while it moves */
+  if(!r.editing){r.editing=true;renderBox(r)}else paint()};  /* the box leaves the translation layer while it moves */
 cv.onpointerup=cv.onpointercancel=e=>{ptrs.delete(e.pointerId);if(pinch){if(ptrs.size<2)pinch=null;return}
   if(!drag)return;const d=drag;drag=null;
   if(d.mode==='pan'){cv.style.cursor=spaceDown?'grab':'crosshair';return}
   if(d.mode==='paint')return paintEnd(d);
-  if(d.mode!=='new'){const r=d.r;r.editing=false;
-    if(bs(r)!==d.before){logG({t:'box',box:r,before:d.before,label:d.mode==='move'?'Moved the box':'Resized the box'});prep(r);list()}
-    return render()}
+  if(d.mode!=='new'){const r=d.r,was=boxArea({...d.g,patch:r.patch,px:r.px,py:r.py});r.editing=false;
+    if(bs(r)!==d.before){logG({t:'box',box:r,before:d.before,label:d.mode==='move'?'Moved the box':'Resized the box'});prep(r);syncBox(r)}  /* only this card can change */
+    return renderBox(was,r)}
   if(e.type==='pointercancel')return paint();
   const x=Math.max(0,Math.round(Math.min(d.x0,d.x1))),y=Math.max(0,Math.round(Math.min(d.y0,d.y1)));
   const w=Math.min(src.width-x,Math.round(Math.abs(d.x1-d.x0))),h=Math.min(src.height-y,Math.round(Math.abs(d.y1-d.y0)));
-  if(w>12&&h>12){const r=newBox({x,y,w,h},d.free?{free:true,status:'Your own text box. Type your text below.'}:{});regs.push(r);logG({t:'add',box:r,idx:regs.length-1});sel=regs.length-1;list(true);render();
+  if(w>12&&h>12){const r=newBox({x,y,w,h},d.free?{free:true,status:'Your own text box. Type your text below.'}:{});regs.push(r);logG({t:'add',box:r,idx:regs.length-1});sel=regs.length-1;listAdd(r);renderBox(r);
     if(d.free)setTool('select');else pipeline(r)}
   else{sel=-1;markSel();paint()}};
 function newBox(g,extra){const r={id:++uid,...g,src:'',txt:'',font:'auto',style:'normal',status:'',shape:boxShape,...(extra||{})};prep(r,true);return r}
@@ -2247,7 +2277,7 @@ async function detectLang(r,img){let best=null;const L=['kor','jpn','eng','ara']
   for(let i=0;i<L.length;i++){setStatus(r,`Detecting the language (${i+1} of ${L.length})…`);const o=await readOCR(img,L[i]);
     const score=o.conf+(o.text&&detectScript(o.text)===L[i]?10:0);if(!best||score>best.score)best={lang:L[i],score,...o}}
   return best&&best.text&&best.conf>=40?best:null}
-function setStatus(r,msg){r.status=msg;const busy=/…$/.test(msg||''),was=!!r._busy;r._busy=busy;const el=document.querySelector(`[data-st="${r.id}"]`);if(el){el.textContent=msg;el.classList.toggle('warn',/fail|could not|declined|not known|unavailable|cut off/i.test(msg));el.closest('.reg')?.classList.toggle('scan',busy)}if(busy!==was)paint()}
+function setStatus(r,msg){r.status=msg;const busy=/…$/.test(msg||''),was=!!r._busy;r._busy=busy;const el=inCard(r,`[data-st="${r.id}"]`);if(el){el.textContent=msg;el.classList.toggle('warn',/fail|could not|declined|not known|unavailable|cut off/i.test(msg));el.closest('.reg')?.classList.toggle('scan',busy)}if(busy!==was)paint()}
 function fill(r,o,msg){checkpoint(r,'auto');for(const k in o)if(o[k]!=null)r[k]=o[k];if(o.txt!=null)r.stage='';syncBox(r);setStatus(r,msg);render();pageBar()}
 /* the box as an image for reading: everything that is not the bubble's inside or its lettering (outline, art) is painted over */
 const crop=r=>{const c=document.createElement('canvas');c.width=r.w;c.height=r.h;const x=c.getContext('2d');x.drawImage(src,r.x,r.y,r.w,r.h,0,0,r.w,r.h);if(r.shape&&r.shape!=="rect"){x.save();x.globalCompositeOperation="destination-in";shapePath(x,0,0,r.w,r.h,r.shape);x.fill();x.globalCompositeOperation="destination-over";x.fillStyle="#fff";x.fillRect(0,0,r.w,r.h);x.restore()}
@@ -2482,13 +2512,26 @@ function textGrad(x,L,from){let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinit
     x0=Math.min(x0,a);x1=Math.max(x1,a+w);y0=Math.min(y0,it.y-s*.5);y1=Math.max(y1,it.y+s*.5)});
   if(!isFinite(x0))return from;const d=L.st.gdir,g=d==='h'?x.createLinearGradient(x0,0,x1,0):d==='d'?x.createLinearGradient(x0,y0,x1,y1):x.createLinearGradient(0,y0,0,y1);
   g.addColorStop(0,from);g.addColorStop(1,L.st.grad||from);return g}
+/* where the lettering actually lands on the page (outline, glow and rotation included), so a partial redraw can clear it */
+function textExt(r,x,L){let ax=0,ay=0;const s=L.s;L.items.forEach(it=>{const w=L.vert?s:x.measureText(it.t).width,a=L.vert||L.st.align==='center'?it.x-w/2:L.st.align==='left'?it.x:it.x-w;
+    ax=Math.max(ax,Math.abs(a),Math.abs(a+w));ay=Math.max(ay,Math.abs(it.y)+s*.6)});
+  const pad=L.ol+L.th+(L.st.glow?L.st.glow*s/7:0)+4;let hx=ax+pad,hy=ay+pad;if(L.st.angle){hx=hy=Math.hypot(hx,hy)}
+  r._ext={x0:Math.floor(L.cx-hx),y0:Math.floor(L.cy-hy),x1:Math.ceil(L.cx+hx),y1:Math.ceil(L.cy+hy)}}
+/* average brightness behind a box on the original page (0 black, 255 white), kept until the box moves */
+function bgLum(r){const k=r.x+','+r.y+','+r.w+','+r.h;if(r._bgk===k)return r._bgL;let L=255;
+  try{const W=Math.max(1,Math.min(r.w,src.width-r.x)),H=Math.max(1,Math.min(r.h,src.height-r.y)),d=sctx.getImageData(r.x,r.y,W,H).data,step=Math.max(1,Math.floor(d.length/4/2000))*4;let t=0,n=0;
+    for(let i=0;i<d.length;i+=step){t+=.299*d[i]+.587*d[i+1]+.114*d[i+2];n++}if(n)L=t/n}catch(e){}
+  r._bgk=k;r._bgL=L;return L}
+/* Auto outline: the opposite of the text colour, unless that would vanish into what is behind the box
+   (a white outline on a white bubble): then the colour that stands out from the background */
+const autoOutline=(r,light)=>{const L=bgLum(r);return light?(L<70?'#ffffff':'#111111'):(L>185?'#111111':'#ffffff')};
 function drawText(r0,x){x.direction=$('tgt').value==='ar'?'rtl':'ltr';const L=layout(r0,x),{st,s,ol,th}=L,each=f=>L.items.forEach(it=>f(it.t,it.x,it.y));
   x.save();x.translate(L.cx,L.cy);if(st.angle)x.rotate(st.angle*Math.PI/180);x.font=L.font;setLS(x,L.vert?'0px':st.ls*s/100+'px');
   x.textAlign=L.vert?'center':st.align;x.textBaseline='middle';x.lineJoin='round';const fill=st.color||`rgb(${r0.ink})`,light=.299*r0.ink[0]+.587*r0.ink[1]+.114*r0.ink[2]>140;
   if(st.glow){x.save();x.shadowColor=x.fillStyle=x.strokeStyle=st.gcolor||(light?'rgba(10,10,10,.9)':'rgba(255,255,255,.95)');x.shadowBlur=st.glow*s/14;x.lineWidth=Math.max(1,s/12);
     each((t,a,b)=>{x.strokeText(t,a,b);x.fillText(t,a,b)});x.restore()}  /* glow: a soft halo behind the letters */
-  if(ol){x.strokeStyle=st.ocolor||(light?'rgb(17,17,17)':'#fff');x.lineWidth=ol+th;each((t,a,b)=>x.strokeText(t,a,b))}
-  const ink=st.gon?textGrad(x,L,fill):fill;
+  if(ol){x.strokeStyle=st.ocolor||autoOutline(r0,light);x.lineWidth=ol+th;each((t,a,b)=>x.strokeText(t,a,b))}
+  const ink=st.gon?textGrad(x,L,fill):fill;textExt(r0,x,L);
   if(th){x.strokeStyle=ink;x.lineWidth=th;each((t,a,b)=>x.strokeText(t,a,b))}  /* thickness: a stroke in the text's own colour */
   x.fillStyle=ink;each((t,a,b)=>x.fillText(t,a,b));x.restore();setLS(x,'0px')}
 function paintLayer(x){const pc=(pages[cur]||{}).paint;
@@ -2497,30 +2540,17 @@ function paintLayer(x){const pc=(pages[cur]||{}).paint;
   regs.forEach(r=>{if(r.stamp)drawStamp(r,x)});
   regs.forEach(r=>{if(r.txt.trim()&&!r.editing&&(r.free||r.patch))drawText(r,x)})}
 /* render: the boxes changed, so rebuild the layer on the next frame; paint: only the view or the outlines changed */
-function render(){layerDirty=true;paint();scheduleSave()}
+function render(){layerDirty=true;layerParts.length=0;paint();scheduleSave()}
 function setView(orig){showOrig=orig;$('vT').setAttribute('aria-pressed',!orig);$('vO').setAttribute('aria-pressed',orig);paint()}
 $('vT').onclick=()=>setView(false);$('vO').onclick=()=>setView(true);
 
 /* ---------- side panel ---------- */
 function markSel(){$$('.reg').forEach((el,j)=>{el.classList.toggle('sel',j===sel);if(j===sel)el.scrollIntoView({block:'nearest'})})}
 function focusBox(r){sel=regs.indexOf(r);markSel();animateCam(cv.clientWidth/2-(r.x+r.w/2)*cam.s,cv.clientHeight/2-(r.y+r.h/2)*cam.s,cam.s)}
-function list(focus){const Lc=$('list');Lc.innerHTML='';pageBar();$('bcount').hidden=!regs.length;$('bcount').textContent=regs.length;
-  if(!regs.length){Lc.innerHTML=`<div class="emptylist">${loaded?'No boxes on this page yet.<br>Press <b>Find bubbles</b>, or drag over text on the page.':'Open a chapter to start.'}</div>`;return}
-  const allF=regs.every(r=>r.fold);Lc.insertAdjacentHTML('beforeend',`<div class="listbar"><small class="mute">${regs.length} box${regs.length>1?'es':''}</small><span class="spacer"></span><button id="cmpct" class="ghost" title="Compact: only the selected box shows all its tools">${Lc.classList.contains('compact')?'Full cards':'Compact'}</button><button id="foldall" class="ghost">${allF?'Show all':'Hide all'}</button></div>`);
-  $('foldall').onclick=()=>{regs.forEach(r=>r.fold=!allF);list();scheduleSave()};
-  regs.forEach((r,i)=>{const d=document.createElement('div');d.className='reg'+(i===sel?' sel':'')+(r.free?' free':'')+(r.stamp?' stamp':'')+(r.fold?' folded':'')+(r._busy?' scan':'');
-    d.innerHTML=`<div class="top"><button class="pick" title="Show on the page">Box <span class="no">${i+1}</span></button><span class="tag" data-tag="${r.id}"></span><span class="fpre" data-fp="${r.id}"></span>
-        <select class="stage" data-sg="${r.id}" aria-label="Status of box ${i+1}" title="Where this box is in the work: translated, proofread, typeset, approved">${STAGES.map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
-        ${isTeam(serOf(curS))?`<button class="icon cm" data-cm="${r.id}" title="Comments from the team" aria-label="Comments on box ${i+1}">${ic('chat')}<span class="cmn"></span></button>`:''}<button class="icon nb${(r.note||'').trim()?' has':''}" title="Note for the proofreader or team" aria-label="Note for box ${i+1}">${ic('note')}</button><button class="icon fold" aria-expanded="${!r.fold}" title="Hide or show this box's details" aria-label="Hide or show box ${i+1}">${ic('chev')}</button><button class="icon del" title="Delete box" aria-label="Delete box ${i+1}">${ic('trash')}</button></div>
-      <small class="st" data-st="${r.id}"></small>
-      <label class="fld"><span class="cap">Original</span><textarea class="s" dir="auto" data-src="${r.id}" rows="2" placeholder="Read from the page, for reference"></textarea></label>
-      <div class="acts"><button class="rd" title="Read the text in this box from the image again, then translate it" aria-label="Read box ${i+1} from the image and translate">${ic('scan')}Read &amp; translate</button><button class="rr" title="Translate the Original text exactly as you typed or fixed it. The image is not read again." aria-label="Translate my edit of box ${i+1}">${ic('translate')}Translate my edit</button><button class="ag" title="Add a name or term from this box to the series glossary (select it first)" aria-label="Add to glossary">${ic('book')}</button><button class="ag hl" title="Remove the original lettering by rebuilding the art behind it. For text drawn over artwork or sound effects. Read the text first." aria-label="Remove the original text">${ic('heal')}</button></div>
-      <label class="fld"><span class="cap">Translation</span><textarea class="t" dir="auto" data-t="${r.id}" rows="2" placeholder="Type the translation"></textarea></label>
-      <label class="fld nfld"${(r.note||'').trim()?'':' hidden'}><span class="cap">Note</span><textarea class="n" dir="auto" data-n="${r.id}" rows="1" placeholder="For the proofreader or team. Not printed."></textarea></label>
-      <div class="thr" hidden></div>
-      <div class="fontrow"><span class="sw" style="background:rgb(${r.ink})" title="Ink colour"></span><select data-f="${r.id}" aria-label="Font">${['auto',...Object.keys(F)].map(k=>`<option value="${k}">${k==='auto'?'Auto':(F[k].custom?'★ ':'')+F[k].n+({ar:' (Arabic)',ko:' (Korean)',ja:' (Japanese)'}[F[k].s]||'')}</option>`).join('')}</select>
-        <label><input type="checkbox" data-i="${r.id}"> Italic</label><label><input type="checkbox" data-o="${r.id}"> Outline</label><button type="button" class="cs${styleClip&&styleClip.from===r.id?' on':''}" title="${styleClip&&styleClip.from!==r.id?'Paste the copied text style on this box':'Copy this box’s font and text style, then click other boxes to paste it'}">${ic(styleClip&&styleClip.from!==r.id?'roller':'brush')}${styleClip&&styleClip.from!==r.id?'Paste style':styleClip?'Copied':'Copy style'}</button></div>
-      <details class="styl" data-styl="${r.id}"${r._open?' open':''}><summary>Text style<i class="chev" aria-hidden="true"></i></summary><div class="stg">
+/* box cards: the font menu and the Text style controls are built on demand (see list) */
+const fontLabel=k=>k==='auto'?'Auto':F[k]?(F[k].custom?'★ ':'')+F[k].n+({ar:' (Arabic)',ko:' (Korean)',ja:' (Japanese)'}[F[k].s]||''):k;
+const fontOpts=keys=>keys.map(k=>`<option value="${k}">${fontLabel(k)}</option>`).join('');
+const stgHTML=r=>`
         <span>Kind</span><select data-ks="${r.id}" aria-label="Kind of text">${STYLES.map(k=>`<option value="${k}">${STYLE_NAME[k]}</option>`).join('')}</select><span></span>
         <span>Size</span><input type="range" data-k="size" min="40" max="250" step="5" aria-label="Text size"><output></output>
         <span>Weight</span><select data-k="weight" aria-label="Weight"><option value="0">Font default</option><option value="300">Light</option><option value="400">Regular</option><option value="700">Bold</option><option value="900">Black</option></select><span></span>
@@ -2536,23 +2566,51 @@ function list(focus){const Lc=$('list');Lc.innerHTML='';pageBar();$('bcount').hi
         <span>Gradient</span><span class="row2"><label><input type="checkbox" data-k="gon"> On</label><input type="color" data-k="grad" aria-label="Gradient second colour" title="The text fades from its colour into this one"><select data-k="gdir" aria-label="Gradient direction"><option value="v">Top to bottom</option><option value="h">Left to right</option><option value="d">Diagonal</option></select></span>
         <span>Align</span><span class="row2"><span class="seg" role="group" aria-label="Align"><button type="button" data-al="left">Left</button><button type="button" data-al="center">Centre</button><button type="button" data-al="right">Right</button></span></span>
         <span></span><span class="row2"><label><input type="checkbox" data-k="caps"> Capitals</label><label><input type="checkbox" data-k="fit"> Shrink to fit the bubble</label><label><input type="checkbox" data-k="vert"> Vertical (Japanese)</label></span>
-        <span></span><span class="row2"><button type="button" data-pset title="Every box of this kind in the series uses this look, unless you change that box">Save as the series style</button><button type="button" data-reset="all">Reset text style</button></span></div></details>`;
+        <span></span><span class="row2"><button type="button" data-pset title="Every box of this kind in the series uses this look, unless you change that box">Save as the series style</button><button type="button" data-reset="all">Reset text style</button></span>`;
+function list(focus){const Lc=$('list');Lc.innerHTML='';cardOf.clear();pageBar();$('bcount').hidden=!regs.length;$('bcount').textContent=regs.length;
+  if(!regs.length){Lc.innerHTML=`<div class="emptylist">${loaded?'No boxes on this page yet.<br>Press <b>Find bubbles</b>, or drag over text on the page.':'Open a chapter to start.'}</div>`;return}
+  const allF=regs.every(r=>r.fold);Lc.insertAdjacentHTML('beforeend',`<div class="listbar"><small class="mute">${regs.length} box${regs.length>1?'es':''}</small><span class="spacer"></span><button id="cmpct" class="ghost" title="Compact: only the selected box shows all its tools">${Lc.classList.contains('compact')?'Full cards':'Compact'}</button><button id="foldall" class="ghost">${allF?'Show all':'Hide all'}</button></div>`);
+  $('foldall').onclick=()=>{regs.forEach(r=>r.fold=!allF);list();scheduleSave()};
+  regs.forEach((r,i)=>card(r,i,focus,Lc));
+  if(team.on)threadsUI()}
+/* one box's card in the list */
+function card(r,i,focus,Lc){const d=document.createElement('div');d.className='reg'+(i===sel?' sel':'')+(r.free?' free':'')+(r.stamp?' stamp':'')+(r.fold?' folded':'')+(r._busy?' scan':'');
+    d.innerHTML=`<div class="top"><button class="pick" title="Show on the page">Box <span class="no">${i+1}</span></button><span class="tag" data-tag="${r.id}"></span><span class="fpre" data-fp="${r.id}"></span>
+        <select class="stage" data-sg="${r.id}" aria-label="Status of box ${i+1}" title="Where this box is in the work: translated, proofread, typeset, approved">${STAGES.map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
+        ${isTeam(serOf(curS))?`<button class="icon cm" data-cm="${r.id}" title="Comments from the team" aria-label="Comments on box ${i+1}">${ic('chat')}<span class="cmn"></span></button>`:''}<button class="icon nb${(r.note||'').trim()?' has':''}" title="Note for the proofreader or team" aria-label="Note for box ${i+1}">${ic('note')}</button><button class="icon fold" aria-expanded="${!r.fold}" title="Hide or show this box's details" aria-label="Hide or show box ${i+1}">${ic('chev')}</button><button class="icon del" title="Delete box" aria-label="Delete box ${i+1}">${ic('trash')}</button></div>
+      <small class="st" data-st="${r.id}"></small>
+      <label class="fld"><span class="cap">Original</span><textarea class="s" dir="auto" data-src="${r.id}" rows="2" placeholder="Read from the page, for reference"></textarea></label>
+      <div class="acts"><button class="rd" title="Read the text in this box from the image again, then translate it" aria-label="Read box ${i+1} from the image and translate">${ic('scan')}Read &amp; translate</button><button class="rr" title="Translate the Original text exactly as you typed or fixed it. The image is not read again." aria-label="Translate my edit of box ${i+1}">${ic('translate')}Translate my edit</button><button class="ag" title="Add a name or term from this box to the series glossary (select it first)" aria-label="Add to glossary">${ic('book')}</button><button class="ag hl" title="Remove the original lettering by rebuilding the art behind it. For text drawn over artwork or sound effects. Read the text first." aria-label="Remove the original text">${ic('heal')}</button></div>
+      <label class="fld"><span class="cap">Translation</span><textarea class="t" dir="auto" data-t="${r.id}" rows="2" placeholder="Type the translation"></textarea></label>
+      <label class="fld nfld"${(r.note||'').trim()?'':' hidden'}><span class="cap">Note</span><textarea class="n" dir="auto" data-n="${r.id}" rows="1" placeholder="For the proofreader or team. Not printed."></textarea></label>
+      <div class="thr" hidden></div>
+      <div class="fontrow"><span class="sw" style="background:rgb(${r.ink})" title="Ink colour"></span><select data-f="${r.id}" aria-label="Font">${fontOpts(r.font==='auto'||!F[r.font]?['auto']:['auto',r.font])}</select>
+        <label><input type="checkbox" data-i="${r.id}"> Italic</label><label><input type="checkbox" data-o="${r.id}"> Outline</label><input type="color" class="ocol" data-oc="${r.id}" title="Outline colour" aria-label="Outline colour"><button type="button" class="cs${styleClip&&styleClip.from===r.id?' on':''}" title="${styleClip&&styleClip.from!==r.id?'Paste the copied text style on this box':'Copy this box’s font and text style, then click other boxes to paste it'}">${ic(styleClip&&styleClip.from!==r.id?'roller':'brush')}${styleClip&&styleClip.from!==r.id?'Paste style':styleClip?'Copied':'Copy style'}</button></div>
+      <details class="styl" data-styl="${r.id}"${r._open?' open':''}><summary>Text style<i class="chev" aria-hidden="true"></i></summary><div class="stg">${r._open?stgHTML(r):''}</div></details>`;
     const s=d.querySelector('.s'),t=d.querySelector('.t');
     s.oninput=()=>{checkpoint(r,'s');r.src=s.value;scheduleSave();clearTimeout(r._ft);d.querySelector('.rr').classList.toggle('edited',!!r.src.trim());
       if($('follow').checked&&r.src.trim()){setStatus(r,'Will translate your edit when you stop typing…');r._ft=setTimeout(()=>translateSrc(r),1200)}};
-    t.oninput=()=>{checkpoint(r,'t');r.txt=t.value;r.manual=true;if(r.stage==='todo')r.stage='';setStatus(r,'Your own translation. It is saved and kept.');d.classList.toggle('done',!!r.txt.trim());render()};
+    t.oninput=()=>{checkpoint(r,'t');r.txt=t.value;r.manual=true;if(r.stage==='todo')r.stage='';setStatus(r,'Your own translation. It is saved and kept.');d.classList.toggle('done',!!r.txt.trim());renderBox(r)};
     s.onfocus=t.onfocus=()=>{const j=regs.indexOf(r);if(sel!==j){sel=j;markSel();render()}};
     t.onblur=()=>pageBar();
     d.querySelector('.pick').onclick=()=>focusBox(r);
-    d.querySelector('select[data-f]').onchange=e=>{checkpoint(r,null,'Changed the font');r.font=e.target.value;render()};
-    d.querySelector('[data-i]').onchange=e=>{checkpoint(r,null,e.target.checked?'Italic on':'Italic off');r.italic=e.target.checked;render()};
-    d.querySelector('[data-o]').onchange=e=>{checkpoint(r,null,e.target.checked?'Outline on':'Outline off');r.outline=e.target.checked;render()};
-    const P=d.querySelector('details.styl'),setSt=(k,v)=>{checkpoint(r,'st-'+k);r.st={...(r.st||{}),[k]:v};syncStyle(r);render()};
-    P.ontoggle=()=>{r._open=P.open};
+    {const fs=d.querySelector('select[data-f]'),full=()=>{if(fs._full)return;fs._full=1;const v=fs.value,a=fs.options[0].textContent;fs.innerHTML=fontOpts(['auto',...Object.keys(F)]);fs.value=v;fs.options[0].textContent=a};
+      ['pointerdown','focus','keydown'].forEach(t=>fs.addEventListener(t,full))}
+    d.querySelector('select[data-f]').onchange=e=>{checkpoint(r,null,'Changed the font');r.font=e.target.value;renderBox(r)};
+    d.querySelector('[data-i]').onchange=e=>{checkpoint(r,null,e.target.checked?'Italic on':'Italic off');r.italic=e.target.checked;renderBox(r)};
+    d.querySelector('[data-oc]').oninput=e=>{checkpoint(r,'st-ocolor');r.st={...(r.st||{}),ocolor:e.target.value};syncStyle(r);renderBox(r)};
+    d.querySelector('[data-o]').onchange=e=>{checkpoint(r,null,e.target.checked?'Outline on':'Outline off');r.outline=e.target.checked;syncBox(r);renderBox(r)};
+    const P=d.querySelector('details.styl'),setSt=(k,v)=>{checkpoint(r,'st-'+k);r.st={...(r.st||{}),[k]:v};syncStyle(r);syncBox(r);renderBox(r)};
+    const wireSt=()=>{
     P.querySelectorAll('[data-k]').forEach(el=>{const k=el.dataset.k,ev=el.type==='range'||el.type==='color'?'input':'change';
       el.addEventListener(ev,()=>setSt(k,el.type==='checkbox'?el.checked:el.type==='color'||k==='align'?el.value:Number(el.value)))});
     P.querySelectorAll('[data-al]').forEach(b=>b.onclick=()=>setSt('align',b.dataset.al));
     P.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{const k=b.dataset.reset;checkpoint(r,null,'Reset the text style');if(k==='all')r.st={};else r.st={...(r.st||{}),[k]:''};syncStyle(r);render()});
+    P.querySelector('[data-ks]').onchange=e=>{checkpoint(r,null,'Kind: '+STYLE_NAME[e.target.value]);r.style=e.target.value;syncBox(r);syncStyle(r);render()};
+    P.querySelector('[data-pset]').onclick=()=>savePreset(r)};
+    /* the panel's controls are built the first time it opens, so a long box list stays quick to draw */
+    P.ontoggle=()=>{r._open=P.open;if(P.open&&!P.querySelector('[data-k]')){P.querySelector('.stg').innerHTML=stgHTML(r);wireSt();syncStyle(r)}};
+    if(r._open)wireSt();
     d.querySelector('.rr').onclick=()=>{if(!r.src.trim())return setStatus(r,'Type or fix the Original text first, or use Read & translate.');clearTimeout(r._ft);translateSrc(r)};
     d.querySelector('.rd').onclick=()=>pipeline(r,{go:true,redetect:true});
     d.querySelector('.del').onclick=()=>delBox(r);
@@ -2563,12 +2621,14 @@ function list(focus){const Lc=$('list');Lc.innerHTML='';pageBar();$('bcount').hi
     n.oninput=()=>{checkpoint(r,'n');r.note=n.value;d.querySelector('.nb').classList.toggle('has',!!r.note.trim());scheduleSave()};
     const cm=d.querySelector('.cm');if(cm)cm.onclick=()=>{const el=d.querySelector('.thr');el.hidden=!el.hidden;if(!el.hidden){renderThread(r,el);setTimeout(()=>el.querySelector('textarea')?.focus(),50)}};
     d.querySelector('.ag:not(.hl)').onclick=()=>addTerm(r);d.querySelector('.hl').onclick=()=>{if(regs.includes(r)){sel=regs.indexOf(r);markSel()}healBox(r)};
-    P.querySelector('[data-ks]').onchange=e=>{checkpoint(r,null,'Kind: '+STYLE_NAME[e.target.value]);r.style=e.target.value;syncBox(r);syncStyle(r);render()};
-    P.querySelector('[data-pset]').onclick=()=>savePreset(r);
     d.querySelector('.fold').onclick=e=>{r.fold=!r.fold;d.classList.toggle('folded',r.fold);e.currentTarget.setAttribute('aria-expanded',!r.fold);scheduleSave();
       $('foldall').textContent=regs.every(q=>q.fold)?'Show all':'Hide all'};
-    Lc.appendChild(d);syncBox(r);syncStyle(r);setStatus(r,r.status||'');if(focus&&i===sel)t.focus()});
-  if(team.on)threadsUI()}
+    Lc.appendChild(d);cardOf.set(r.id,d);syncBox(r);syncStyle(r);setStatus(r,r.status||'');if(focus&&i===sel)t.focus()}
+/* a box added at the end of the page gets its own card, instead of the whole list being rebuilt */
+function listAdd(r){const Lc=$('list'),i=regs.indexOf(r),bar=Lc.querySelector('.listbar small');
+  if(i!==regs.length-1||!bar||Lc.querySelectorAll('.reg').length!==i||regs.every(q=>q.fold))return list(true);
+  pageBar();$('bcount').hidden=false;$('bcount').textContent=regs.length;bar.textContent=`${regs.length} boxes`;
+  Lc.querySelectorAll('.reg.sel').forEach(c=>c.classList.remove('sel'));card(r,i,true,Lc);if(team.on)threadsUI()}
 
 /* ---------- your fonts: Google Fonts, an Adobe Fonts kit, or font files, added to the list KARS and Claude choose from ---------- */
 const SAMPLE={lat:'Where are you going?!',ar:'إلى أين أنت ذاهب؟',ko:'어디 가는 거야?',ja:'どこへ行くの？'};
