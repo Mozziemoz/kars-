@@ -908,6 +908,9 @@ textarea{resize:vertical;min-height:52px}
 .reg.sel{background:var(--sel)}
 .reg.sel::before{transform:none}            /* markSel toggles the class → the bar draws down; list() rebuilds start drawn (no flicker) */
 .reg.free .fld:has(.s),.reg.free .acts{display:none}       /* keep */
+.reg.stamp .fld,.reg.stamp .fontrow,.reg.stamp details.styl,.reg.stamp select.stage{display:none}
+.prow .sthumb{grid-row:1/3;width:44px;height:30px;object-fit:contain;background:repeating-conic-gradient(var(--sunk) 0 25%,var(--raise) 0 50%) 0 0/10px 10px;border-radius:4px}
+.prow:has(.sthumb){grid-template-columns:auto 1fr auto}.prow:has(.sthumb) b,.prow:has(.sthumb) small{grid-column:2}.prow:has(.sthumb) .grp{grid-column:3}
 .reg.folded>:not(.top){display:none}                       /* keep: display:none is asserted by tests */
 .reg.folded{padding-bottom:12px}
 .reg.folded .fold svg.i{transform:rotate(-90deg)}
@@ -1336,14 +1339,13 @@ aside{position:relative}
       <p class="note">Drag the panel's left edge to make it wider or narrower. Double-click the edge to reset it.</p>
       <h3 class="sec">Pages and lettering</h3>
       <label class="field"><span>Reading order</span><select id="order"><option value="auto">Auto (from the language)</option><option value="rtl">Right to left (manga)</option><option value="ltr">Left to right (manhwa, manhua)</option></select></label>
+      <label class="field"><span>Long manhwa strips</span><select id="split"><option value="off">Keep each image whole (tall pages are read in parts)</option><option value="big">Cut into large pieces</option><option value="page">Cut into page-size pieces</option></select></label>
       <label class="field"><span>Text size</span><span class="rowx"><input id="size" type="range" min="50" max="200" value="100"><span id="sizeV" class="small mute">100%</span></span></label>
       <h3 class="sec">While you work</h3>
       <div class="checks">
       <label class="check"><input id="auto" type="checkbox" checked><span>Translate a box as soon as I draw it</span></label>
       <label class="check"><input id="follow" type="checkbox" checked><span>Translate again when I edit the original text</span></label>
-      <label class="check"><input id="sfx" type="checkbox"><span>Also translate sound effects drawn in the art (Translate page)</span></label>
-      <label class="check"><input id="split" type="checkbox" checked><span>Split long manhwa strips into pages when importing</span></label>
-      </div>
+      <label class="check"><input id="sfx" type="checkbox"><span>Also translate sound effects drawn in the art (Translate page)</span></label>      </div>
     </div>
     <div class="pane" id="p-fonts" role="tabpanel" hidden>
       <h3 class="sec">Your fonts</h3>
@@ -1373,6 +1375,10 @@ aside{position:relative}
       <h3 class="sec">Text styles</h3>
       <p class="note" style="margin-top:0">One look per kind of text. Set a box the way you want, then press <b>Save as the series style</b> in its Text style panel. Every box of that kind without its own changes follows it.</p>
       <div id="presets" class="presets"></div>
+      <h3 class="sec">Stamps</h3>
+      <p class="note" style="margin-top:0">Images this series uses again and again, like your translated title logo. Add one once, then place it on any page and move or resize it like a box. It is included when you export.</p>
+      <div id="stamps" class="presets"></div>
+      <div class="grp wrap" style="margin-top:8px"><label class="btn" id="stampadd">Add image<input class="fileIn" id="stampin" type="file" accept="image/png,image/webp,image/jpeg,image/gif"></label></div>
     </div>
   </aside>
 </main>
@@ -1513,6 +1519,7 @@ let siteSample=null;
   catch(e){off('local','Claude on this PC (start the KARS server)');if($('engine').value==='local')$('engine').value=keys.claude?'claude':'gfree'}
   keyRow()})();
 try{const s=JSON.parse(localStorage.getItem('kars_set')||'{}');SET.forEach(k=>{if(s[k]==null)return;const el=$(k);if(el.type==='checkbox')el.checked=s[k];else el.value=s[k]})}catch(e){}
+if(!$('split').value)$('split').value='off';  /* "split" used to be a checkbox saved as true or false */
 $('sizeV').textContent=$('size').value+'%';
 const saveSettings=()=>{try{localStorage.setItem('kars_set',JSON.stringify(Object.fromEntries(SET.map(k=>{const el=$(k);return[k,el.type==='checkbox'?el.checked:el.value]}))))}catch(e){}};
 SET.forEach(k=>$(k).addEventListener('change',saveSettings));
@@ -1548,7 +1555,7 @@ function setBox(r,s){const g=geo(r);Object.assign(r,JSON.parse(s));syncStyle(r);
   syncBox(r);render()}
 function syncBox(r){const q=k=>document.querySelector(`[data-${k}="${r.id}"]`);if(!q('t'))return;q('fp').textContent=r.txt||r.src||'';
   q('src').value=r.src;q('t').value=r.txt;q('n').value=r.note||'';const sg=q('sg');sg.value=sg.dataset.v=stageOf(r);const ks=q('ks');if(ks)ks.value=r.style||'normal';q('f').value=r.font;q('f').options[0].textContent=`Auto: ${F[autoKey(r)].n}`;q('i').checked=!!r.italic;q('o').checked=!!r.outline;
-  q('tag').textContent=[r.free&&'text box',r.lang&&LN[r.lang],r.style!=='normal'&&r.style,r.flat&&'flat fill'].filter(Boolean).join(' · ');q('t').closest('.reg').classList.toggle('done',!!r.txt.trim())}
+  q('tag').textContent=[r.stamp?'stamp':r.free&&'text box',r.lang&&LN[r.lang],r.style!=='normal'&&r.style,r.flat&&'flat fill'].filter(Boolean).join(' · ');q('t').closest('.reg').classList.toggle('done',!!(r.txt.trim()||r.stamp))}
 /* show a box's text style in its panel */
 function syncStyle(r){const P=document.querySelector(`[data-styl="${r.id}"]`);if(!P)return;const st=stOf(r),hex=c=>'#'+c.map(v=>Math.round(v).toString(16).padStart(2,'0')).join('');
   const unit={size:'%',thick:'',ow:'',ls:'',lh:'%',angle:'°',glow:''};
@@ -1594,7 +1601,7 @@ $('undo').onclick=undo;$('redo').onclick=redo;
 const DB=(()=>{let dbp;const open=()=>dbp||(dbp=new Promise((ok,no)=>{const q=indexedDB.open('kars',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error)}));
   const run=(mode,fn)=>open().then(db=>new Promise((ok,no)=>{const t=db.transaction('kv',mode),rq=fn(t.objectStore('kv'));t.oncomplete=()=>ok(rq&&rq.result);t.onerror=t.onabort=()=>no(t.error)}));
   return{get:k=>run('readonly',s=>s.get(k)),put:(k,v)=>run('readwrite',s=>s.put(v,k)),del:k=>run('readwrite',s=>s.delete(k)),clear:()=>run('readwrite',s=>s.clear())}})();
-const KEEP=['note','stage','lay','healed','fold','id','x','y','w','h','src','txt','font','style','match','italic','outline','lang','status','st','manual','free','ink','size'];
+const KEEP=['note','stage','lay','healed','fold','id','x','y','w','h','src','txt','font','style','match','italic','outline','lang','status','st','manual','free','ink','size','stamp'];
 const projState=()=>({v:1,uid,cur,pages:pages.map(p=>({id:p.id,name:p.name,type:p.blob.type,lang:p.lang||null,hasPaint:!!p.hasPaint,boxes:p.regs.map(r=>Object.fromEntries(KEEP.map(k=>[k,r[k]])))}))});
 let saveT=0,restoring=false,saveWarned=false,ready=false;  /* ready: nothing is saved until the last session has been restored */
 function scheduleSave(){if(restoring||!ready)return;clearTimeout(saveT);$('saved').textContent=pages.length?'Saving…':'';$('saved').dataset.state=pages.length?'saving':'';saveT=setTimeout(saveNow,800)}
@@ -1654,16 +1661,20 @@ async function unzip(blob){const z=await(await needZip()).loadAsync(blob),out=[]
     else if(OTHER[ext])(await decodeOther(nm,new Blob([await f.async('arraybuffer')]),ext)).forEach(x=>out.push({...x,path:f.name+'/'+x.name}))}
   return out.sort((a,b)=>natural({name:a.path},{name:b.path}))}
 /* Long manhwa strips are cut where a row is plainest (a gap between panels), about every 1.4 page-widths. */
-async function splitStrip(it){if(!$('split').checked)return[it];let bm;try{bm=await createImageBitmap(it.blob)}catch(e){return[it]}
-  const W=bm.width,H=bm.height;if(H<W*2.5||H<2000){bm.close();return[it]}
-  const tw=48,th=Math.round(H*tw/W),c=document.createElement('canvas');c.width=tw;c.height=th;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(bm,0,0,tw,th);
+/* where to cut a tall image into parts about `target` px tall: at the calmest row near each cut, which is usually the gap between panels */
+function calmCuts(img,W,H,target){const tw=48,th=Math.max(1,Math.round(H*tw/W)),c=document.createElement('canvas');c.width=tw;c.height=th;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,W,H,0,0,tw,th);
   const d=x.getImageData(0,0,tw,th).data,v=new Float32Array(th);
   for(let y=0;y<th;y++){let s=0,s2=0;for(let i=0;i<tw;i++){const k=(y*tw+i)*4,l=d[k]*.3+d[k+1]*.59+d[k+2]*.11;s+=l;s2+=l*l}v[y]=s2/tw-(s/tw)**2}
   const score=y=>{let t=0;for(let j=-2;j<=2;j++)t+=v[clamp(y+j,0,th-1)];return t};
-  const k=th/H,target=W*1.4,cuts=[0];
+  const k=th/H,cuts=[0];
   while(H-cuts[cuts.length-1]>target*1.35){const a=cuts[cuts.length-1],lo=Math.round((a+target*.6)*k),hi=Math.min(th-1,Math.round((a+target*1.4)*k));
     let best=lo,bv=Infinity;for(let y=lo;y<=hi;y++){const s=score(y);if(s<bv){bv=s;best=y}}cuts.push(Math.round(best/k))}
-  cuts.push(H);const base=it.name.replace(/\.[^.]+$/,''),out=[];
+  cuts.push(H);return cuts}
+/* Settings > Long manhwa strips. "Keep whole" still cuts an image taller than STRIP_MAX, since browsers cannot draw a much taller canvas */
+const STRIP_MAX=30000;
+async function splitStrip(it){const mode=$('split').value;let bm;try{bm=await createImageBitmap(it.blob)}catch(e){return[it]}
+  const W=bm.width,H=bm.height;if(mode==='off'?H<=STRIP_MAX:(H<W*2.5||H<2000)){bm.close();return[it]}
+  const cuts=calmCuts(bm,W,H,mode==='page'?W*1.4:mode==='big'?W*3:STRIP_MAX*.7),base=it.name.replace(/\.[^.]+$/,''),out=[];
   for(let i=0;i<cuts.length-1;i++){const h=cuts[i+1]-cuts[i],cc=document.createElement('canvas');cc.width=W;cc.height=h;cc.getContext('2d').drawImage(bm,0,cuts[i],W,h,0,0,W,h);
     out.push({name:`${base}-${String(i+1).padStart(2,'0')}.png`,blob:await new Promise(r=>cc.toBlob(r,'image/png'))})}
   bm.close();return out}
@@ -2351,8 +2362,11 @@ function contextLines(pg,upto){const pi=pages.indexOf(pg),mine=pg?pg.regs:regs,b
 /* one bubble: Claude sees the bubble, plus the whole page with the bubble outlined, for context */
 async function claudeTr(r,img,useSrc){setStatus(r,useSrc?'Translating your text with '+aiName()+'…':'Reading and translating with '+aiName()+'…');
   try{const pg=pageOf(r)||pages[cur],imgs=useSrc?[]:[{label:'the speech bubble or text box to translate',canvas:fitCanvas(img,1200)}];
-    if(!useSrc&&pg===pages[cur]){const c=fitCanvas(src,1400),k=c.width/src.width,x=c.getContext('2d');x.strokeStyle='#e00';x.lineWidth=Math.max(3,4*k);x.strokeRect(r.x*k,r.y*k,r.w*k,r.h*k);
-      imgs.push({label:'the whole page, for context only; the bubble to translate is outlined in red',canvas:c})}
+    if(!useSrc&&pg===pages[cur]){/* on a tall strip, the stretch about two pages tall around the bubble rather than the whole strip, so it stays readable */
+      const W=src.width,H=src.height,tall=H>W*2.6,sh=tall?Math.round(W*2.4):H,y0=tall?clamp(Math.round(r.y+r.h/2-sh/2),0,H-sh):0,part=document.createElement('canvas');
+      part.width=W;part.height=sh;part.getContext('2d').drawImage(src,0,y0,W,sh,0,0,W,sh);
+      const c=fitCanvas(part,1400),k=c.width/W,x=c.getContext('2d');x.strokeStyle='#e00';x.lineWidth=Math.max(3,4*k);x.strokeRect(r.x*k,(r.y-y0)*k,r.w*k,r.h*k);
+      imgs.push({label:tall?'the part of the page around the bubble, for context only; the bubble to translate is outlined in red':'the whole page, for context only; the bubble to translate is outlined in red',canvas:c})}
     const text=`${langLine(r)} ${useSrc?`No image is attached. The translator typed or corrected the source text; it is exactly: "${r.src}". Translate this text as written. For "style", "font", "italic" and "outline" give your best guess; they are not used.`:`Machine-read guess of the text (may be wrong): "${r.src}".`}\n${glossLine()}\nEarlier lines, in reading order:\n${contextLines(pg,(pg?pg.regs:regs).indexOf(r))}\n\n${useSrc?'Translate only that text.':'Translate only the text in image 1.'} "original" is its exact source text, "translation" is your translation, "language" is the source language. ${STYLE_NOTE}`;
     const o=await askClaude(GUIDE,text,imgs,SCHEMA);
     if(!o||typeof o.translation!=='string')throw new Error('Claude did not return a translation. Try again.');
@@ -2367,35 +2381,43 @@ function translateSrc(r){if(!r.src.trim())return pipeline(r,{go:true});clearTime
    and translates them together, so every line has the full page as context. Boxes already on the page are kept and filled.
    With translate:false it only marks the bubbles. Returns how many boxes were added or translated. */
 async function claudePage({translate=true}={}){const pg=pages[cur];if(!pg)return 0;
-  const page=fitCanvas(src,1568),nx=v=>Math.round(v/src.width*1000),ny=v=>Math.round(v/src.height*1000),dir=readingDir();
-  const known=pg.regs.filter(r=>!r.free).map(r=>`#${r.id}: [${nx(r.x)},${ny(r.y)},${nx(r.x+r.w)},${ny(r.y+r.h)}]${r.txt.trim()?` (already translated, keep as context: "${r.txt}")`:''}`).join('\n');
+  /* a tall strip goes to Claude in parts about two pages tall, so its lettering stays sharp. Each part has a margin above and below
+     for context, and adds only the new bubbles whose middle falls in its own share of the page */
+  const W=src.width,H=src.height,dir=readingDir(),cuts=H>W*2.6?calmCuts(src,W,H,W*1.6):[0,H],parts=cuts.length-1,M=Math.round(W*.25),fresh=[];
+  let n=0,lg=null,regions=null,pushed=0;
+  for(let p=0;p<parts;p++){if(pages[cur]!==pg)await show(pages.indexOf(pg));
+  const y0=Math.max(0,cuts[p]-M),y1=Math.min(H,cuts[p+1]+M),sh=y1-y0,part=document.createElement('canvas');part.width=W;part.height=sh;part.getContext('2d').drawImage(src,0,y0,W,sh,0,0,W,sh);
+  const page=fitCanvas(part,1568),nx=v=>Math.round(v/W*1000),ny=v=>Math.round((v-y0)/sh*1000),mine=r=>r.y+r.h/2>=cuts[p]&&r.y+r.h/2<cuts[p+1];
+  const known=pg.regs.filter(r=>!r.free&&mine(r)).map(r=>`#${r.id}: [${nx(r.x)},${ny(r.y)},${nx(r.x+r.w)},${ny(r.y+r.h)}]${r.txt.trim()?` (already translated, keep as context: "${r.txt}")`:''}`).join('\n');
   const task=(known?`These boxes are already marked on the page, as id: [x0,y0,x1,y1] on a 0-1000 scale of the image width and height:\n${known}\nReturn one item for each box that is not already translated, with its id and its box unchanged. Also return any bubble no box covers yet, with id 0.`
       :'Find every speech bubble, thought bubble and narration box on this page. Return one item per bubble with id 0.')+
     ` For a new item, "box" is [x0,y0,x1,y1] around the lettering inside the bubble, on a 0-1000 scale of the image width and height. Only text that characters say or think, narration captions, and readable signs or screens count: never mark artwork, faces, clothing or background.`+
     ($('sfx').checked?' Also include sound effects drawn in the art (kind sfx).':' Leave out sound effects drawn in the art.')+
     ` List the items in reading order: ${dir==='rtl'?'right to left':'left to right'}, top to bottom.`+
-    (translate?'':' Fill "translation" anyway; it is shown only as a draft.');
-  const text=`${langLine()}\n${glossLine()}\nLines translated before this page:\n${contextLines(pages[pages.indexOf(pg)-1]||null,null)}\n\n${task}\n\n"original" is the exact source text, "translation" your translation, "language" the page's source language. ${STYLE_NOTE}`;
-  const o=await askClaude(GUIDE,text,[{label:'the manga or manhwa page',canvas:page}],PAGE_SCHEMA);
+    (translate?'':' Fill "translation" anyway; it is shown only as a draft.')+
+    (parts>1?` This image is part ${p+1} of ${parts} of one tall page, read top to bottom. Skip any bubble that the top or bottom edge of this image cuts off: another part reads it.`:'');
+  const text=`${langLine()}\n${glossLine()}\nLines translated before this ${p?'part':'page'}:\n${contextLines(p?pg:pages[pages.indexOf(pg)-1]||null,null)}\n\n${task}\n\n"original" is the exact source text, "translation" your translation, "language" the page's source language. ${STYLE_NOTE}`;
+  const o=await askClaude(GUIDE,text,[{label:parts>1?`part ${p+1} of ${parts} of a tall manhwa page`:'the manga or manhwa page',canvas:page}],PAGE_SCHEMA);
   if(!o||!Array.isArray(o.items))throw new Error('Claude did not return the page. Try again.');
   if(pages[cur]!==pg)await show(pages.indexOf(pg));  /* you moved to another page meanwhile: come back to place the boxes */
-  const lg=BYNAME[o.language];if(lg&&auto()){pg.lang=lg}
-  const regions=bubbleRegions(),fresh=[];let n=0;
+  lg=lg||BYNAME[o.language];if(lg&&auto()){pg.lang=lg}
+  regions=regions||bubbleRegions();
   const fields=it=>({src:String(it.original||''),txt:translate?String(it.translation||''):'',style:STYLES.includes(it.style)?it.style:'normal',match:F[it.font]?it.font:null,italic:!!it.italic,outline:!!it.outline,lang:lg||null});
   for(const it of o.items){const ex=it.id>0&&pg.regs.find(r=>r.id===it.id);
     if(ex){if(translate&&!ex.txt.trim()&&it.translation){fill(ex,fields(it),'Translated with '+aiName()+', with the whole page as context. Review it.');n++}continue}
     if(!Array.isArray(it.box)||it.box.length!==4)continue;
     let [a,b,c2,d]=it.box.map(Number);if([a,b,c2,d].some(v=>!isFinite(v)))continue;[a,c2]=[Math.min(a,c2),Math.max(a,c2)];[b,d]=[Math.min(b,d),Math.max(b,d)];
-    let C={x:a/1000*src.width,y:b/1000*src.height,w:(c2-a)/1000*src.width,h:(d-b)/1000*src.height};
+    let C={x:a/1000*W,y:y0+b/1000*sh,w:(c2-a)/1000*W,h:(d-b)/1000*sh};if(parts>1&&!mine(C))continue;
     /* snap to the bubble the drawing actually has, when Claude's box sits inside one */
     const cx=C.x+C.w/2,cy=C.y+C.h/2,hit=regions.filter(g=>cx>=g.bubble.x&&cx<=g.bubble.x+g.bubble.w&&cy>=g.bubble.y&&cy<=g.bubble.y+g.bubble.h&&g.bubble.w*g.bubble.h<C.w*C.h*12).sort((p,q)=>p.bubble.w*p.bubble.h-q.bubble.w*q.bubble.h)[0];
     if(hit){const B=hit.box,x0=Math.min(C.x,B.x),y0=Math.min(C.y,B.y),x1=Math.max(C.x+C.w,B.x+B.w),y1=Math.max(C.y+C.h,B.y+B.h),G2=hit.bubble;
       C={x:Math.max(x0,G2.x),y:Math.max(y0,G2.y),w:0,h:0};C.w=Math.min(x1,G2.x+G2.w)-C.x;C.h=Math.min(y1,G2.y+G2.h)-C.y}
     else C={x:C.x-4,y:C.y-4,w:C.w+8,h:C.h+8};
     const x=Math.max(0,Math.round(C.x)),y=Math.max(0,Math.round(C.y)),g={x,y,w:Math.min(src.width-x,Math.round(C.w)),h:Math.min(src.height-y,Math.round(C.h))};
-    if(g.w<12||g.h<12||pg.regs.concat(fresh).some(r=>overlap(r,g)>.5))continue;
+    if(g.w<12||g.h<12||pg.regs.concat(fresh.slice(pushed)).some(r=>overlap(r,g)>.5))continue;
     const r=newBox(g);Object.assign(r,fields(it),{status:translate?'Translated with '+aiName()+', with the whole page as context. Review it.':'Found by '+aiName()+'. Press Translate page to translate.'});fresh.push(r);n++}
-  if(fresh.length){pg.regs.push(...fresh);logG({t:'many',boxes:fresh},pg);sel=-1}
+  pg.regs.push(...fresh.slice(pushed));pushed=fresh.length}
+  if(fresh.length){logG({t:'many',boxes:fresh},pg);sel=-1}
   list();render();return n}
 
 /* ---------- translate a page or the whole chapter, one box at a time so each line sees the ones before it ---------- */
@@ -2426,7 +2448,7 @@ $('apply').onclick=()=>{const n=groupEdit(regs,'Applied the glossary',()=>regs.f
 function wrap(x,text,w){const out=[],cjk=$('tgt').value==='ja',sep=cjk?'':' ';for(const p of text.split('\n')){let line='';
   for(const word of cjk?Array.from(p):p.split(' ')){const t=line?line+sep+word:word;if(x.measureText(t).width<=w||!line)line=t;else{out.push(line);line=word}}out.push(line)}return out}
 /* text style per box (r.st): size %, weight, thick(ness), color, outline color/width, letter and line spacing, align, caps, angle, fit */
-const ST_DEF={size:100,weight:0,thick:0,color:'',ocolor:'',ow:16,ls:0,lh:115,align:'center',caps:false,angle:0,fit:true,vert:false,glow:0,gcolor:''};
+const ST_DEF={size:100,weight:0,thick:0,color:'',ocolor:'',ow:16,ls:0,lh:115,align:'center',caps:false,angle:0,fit:true,vert:false,glow:0,gcolor:'',gon:false,grad:'#d9a441',gdir:'v'};
 /* the series' look for this kind of text, if one was saved (see the Series tab) */
 const preset=r=>{const s=serOf(curS);return s&&s.presets&&s.presets[r.style||'normal']||null};
 const stOf=r=>({...ST_DEF,...((preset(r)||{}).st||{}),...(r.st||{})});
@@ -2445,17 +2467,25 @@ function layout(r0,x){const st=stOf(r0),r={...r0,...(r0.lay||{})},{f:fam,w:fw}=F
       fits=lines.length*lh<=H&&lines.every(l=>x.measureText(l).width<=W+1);items=lines.map((l,i)=>({t:l,x:ax,y:y0+i*lh}))}
     if(!st.fit||fits)break}
   s=Math.max(6,s);return{st,s,ol,th,items,vert,font:x.font,over:st.fit&&!fits,shrink:s/want,cx:r.x+r.w/2,cy:r.y+r.h/2}}
+/* gradient fill across the lettering itself (not the whole box), from the text colour into st.grad */
+function textGrad(x,L,from){let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;const s=L.s;
+  L.items.forEach(it=>{const w=L.vert?s:x.measureText(it.t).width,a=L.vert||L.st.align==='center'?it.x-w/2:L.st.align==='left'?it.x:it.x-w;
+    x0=Math.min(x0,a);x1=Math.max(x1,a+w);y0=Math.min(y0,it.y-s*.5);y1=Math.max(y1,it.y+s*.5)});
+  if(!isFinite(x0))return from;const d=L.st.gdir,g=d==='h'?x.createLinearGradient(x0,0,x1,0):d==='d'?x.createLinearGradient(x0,y0,x1,y1):x.createLinearGradient(0,y0,0,y1);
+  g.addColorStop(0,from);g.addColorStop(1,L.st.grad||from);return g}
 function drawText(r0,x){x.direction=$('tgt').value==='ar'?'rtl':'ltr';const L=layout(r0,x),{st,s,ol,th}=L,each=f=>L.items.forEach(it=>f(it.t,it.x,it.y));
   x.save();x.translate(L.cx,L.cy);if(st.angle)x.rotate(st.angle*Math.PI/180);x.font=L.font;setLS(x,L.vert?'0px':st.ls*s/100+'px');
   x.textAlign=L.vert?'center':st.align;x.textBaseline='middle';x.lineJoin='round';const fill=st.color||`rgb(${r0.ink})`,light=.299*r0.ink[0]+.587*r0.ink[1]+.114*r0.ink[2]>140;
   if(st.glow){x.save();x.shadowColor=x.fillStyle=x.strokeStyle=st.gcolor||(light?'rgba(10,10,10,.9)':'rgba(255,255,255,.95)');x.shadowBlur=st.glow*s/14;x.lineWidth=Math.max(1,s/12);
     each((t,a,b)=>{x.strokeText(t,a,b);x.fillText(t,a,b)});x.restore()}  /* glow: a soft halo behind the letters */
   if(ol){x.strokeStyle=st.ocolor||(light?'rgb(17,17,17)':'#fff');x.lineWidth=ol+th;each((t,a,b)=>x.strokeText(t,a,b))}
-  if(th){x.strokeStyle=fill;x.lineWidth=th;each((t,a,b)=>x.strokeText(t,a,b))}  /* thickness: a stroke in the text's own colour */
-  x.fillStyle=fill;each((t,a,b)=>x.fillText(t,a,b));x.restore();setLS(x,'0px')}
+  const ink=st.gon?textGrad(x,L,fill):fill;
+  if(th){x.strokeStyle=ink;x.lineWidth=th;each((t,a,b)=>x.strokeText(t,a,b))}  /* thickness: a stroke in the text's own colour */
+  x.fillStyle=ink;each((t,a,b)=>x.fillText(t,a,b));x.restore();setLS(x,'0px')}
 function paintLayer(x){const pc=(pages[cur]||{}).paint;
   regs.forEach(r=>{if(!r.free&&!r.healed&&r.patch&&r.txt.trim()&&!r.editing)x.drawImage(r.patch,r.px,r.py)});  /* a healed box needs no patch: its lettering is gone from the page */
   if(pc)x.drawImage(pc,0,0);if(strokeTmp){x.save();x.globalAlpha=drag&&drag.heal?.5:drag&&drag.img&&tool==='eraser'?1:pAlpha();x.drawImage(strokeTmp,0,0);x.restore()}
+  regs.forEach(r=>{if(r.stamp)drawStamp(r,x)});
   regs.forEach(r=>{if(r.txt.trim()&&!r.editing&&(r.free||r.patch))drawText(r,x)})}
 /* render: the boxes changed, so rebuild the layer on the next frame; paint: only the view or the outlines changed */
 function render(){layerDirty=true;paint();scheduleSave()}
@@ -2469,7 +2499,7 @@ function list(focus){const Lc=$('list');Lc.innerHTML='';pageBar();$('bcount').hi
   if(!regs.length){Lc.innerHTML=`<div class="emptylist">${loaded?'No boxes on this page yet.<br>Press <b>Find bubbles</b>, or drag over text on the page.':'Open a chapter to start.'}</div>`;return}
   const allF=regs.every(r=>r.fold);Lc.insertAdjacentHTML('beforeend',`<div class="listbar"><small class="mute">${regs.length} box${regs.length>1?'es':''}</small><span class="spacer"></span><button id="cmpct" class="ghost" title="Compact: only the selected box shows all its tools">${Lc.classList.contains('compact')?'Full cards':'Compact'}</button><button id="foldall" class="ghost">${allF?'Show all':'Hide all'}</button></div>`);
   $('foldall').onclick=()=>{regs.forEach(r=>r.fold=!allF);list();scheduleSave()};
-  regs.forEach((r,i)=>{const d=document.createElement('div');d.className='reg'+(i===sel?' sel':'')+(r.free?' free':'')+(r.fold?' folded':'')+(r._busy?' scan':'');
+  regs.forEach((r,i)=>{const d=document.createElement('div');d.className='reg'+(i===sel?' sel':'')+(r.free?' free':'')+(r.stamp?' stamp':'')+(r.fold?' folded':'')+(r._busy?' scan':'');
     d.innerHTML=`<div class="top"><button class="pick" title="Show on the page">Box <span class="no">${i+1}</span></button><span class="tag" data-tag="${r.id}"></span><span class="fpre" data-fp="${r.id}"></span>
         <select class="stage" data-sg="${r.id}" aria-label="Status of box ${i+1}" title="Where this box is in the work: translated, proofread, typeset, approved">${STAGES.map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
         ${isTeam(serOf(curS))?`<button class="icon cm" data-cm="${r.id}" title="Comments from the team" aria-label="Comments on box ${i+1}">${ic('chat')}<span class="cmn"></span></button>`:''}<button class="icon nb${(r.note||'').trim()?' has':''}" title="Note for the proofreader or team" aria-label="Note for box ${i+1}">${ic('note')}</button><button class="icon fold" aria-expanded="${!r.fold}" title="Hide or show this box's details" aria-label="Hide or show box ${i+1}">${ic('chev')}</button><button class="icon del" title="Delete box" aria-label="Delete box ${i+1}">${ic('trash')}</button></div>
@@ -2494,6 +2524,7 @@ function list(focus){const Lc=$('list');Lc.innerHTML='';pageBar();$('bcount').hi
         <span>Rotation</span><input type="range" data-k="angle" min="-45" max="45" step="1" aria-label="Rotation"><output></output>
         <span>Glow</span><input type="range" data-k="glow" min="0" max="30" step="1" aria-label="Glow"><output></output>
         <span>Glow colour</span><span class="row2"><input type="color" data-k="gcolor" aria-label="Glow colour"><button type="button" data-reset="gcolor">Auto</button></span>
+        <span>Gradient</span><span class="row2"><label><input type="checkbox" data-k="gon"> On</label><input type="color" data-k="grad" aria-label="Gradient second colour" title="The text fades from its colour into this one"><select data-k="gdir" aria-label="Gradient direction"><option value="v">Top to bottom</option><option value="h">Left to right</option><option value="d">Diagonal</option></select></span>
         <span>Align</span><span class="row2"><span class="seg" role="group" aria-label="Align"><button type="button" data-al="left">Left</button><button type="button" data-al="center">Centre</button><button type="button" data-al="right">Right</button></span></span>
         <span></span><span class="row2"><label><input type="checkbox" data-k="caps"> Capitals</label><label><input type="checkbox" data-k="fit"> Shrink to fit the bubble</label><label><input type="checkbox" data-k="vert"> Vertical (Japanese)</label></span>
         <span></span><span class="row2"><button type="button" data-pset title="Every box of this kind in the series uses this look, unless you change that box">Save as the series style</button><button type="button" data-reset="all">Reset text style</button></span></div></details>`;
@@ -2617,7 +2648,7 @@ function initFonts(){myFonts.forEach(rec=>{registerFont(rec);loadFontSrc(rec)});
 const baseName=p=>(p&&p.name||'page').replace(/\.[^.]+$/,'');
 /* export: the original pixels plus the translation layer, composited on the CPU at full resolution */
 const composite=()=>{const c=document.createElement('canvas');c.width=src.width;c.height=src.height;const x=c.getContext('2d');x.drawImage(src,0,0);paintLayer(x);return c};
-const snap=()=>new Promise(ok=>composite().toBlob(ok,'image/png'));
+const snap=async()=>{await stampsReady();return new Promise(ok=>composite().toBlob(ok,'image/png'))};
 async function save(blob,name){if(window.claude){const dl=await claude.use('downloads');
     if(dl){try{await dl.save({filename:name,data:blob})}catch(e){if(e&&e.code!=='cancelled'&&e.code!=='declined')toast('Could not save the file ('+(e.code||'error')+').',6000)}return}}
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
@@ -2661,7 +2692,7 @@ function statsFrom(boxLists){const b=boxLists.flat().filter(r=>!r.free),sg={todo
 let libSaveT=0;const saveLibSoon=()=>{clearTimeout(libSaveT);libSaveT=setTimeout(saveLib,500)};
 function seriesFields(){const s=serOf(curS);if(s&&s.gloss==null){try{s.gloss=localStorage.getItem('kars_gloss')||''}catch(e){s.gloss=''}}
   $('gloss').value=s?s.gloss:'';$('snotes').value=s?s.notes||'':'';$('gloss').disabled=$('snotes').disabled=!s;
-  $('gser').textContent=s?`For “${s.title}”. Every chapter of this series uses these, and Claude follows them.`:'Open a series in the Library to keep a glossary and notes for it.';presetList()}
+  $('gser').textContent=s?`For “${s.title}”. Every chapter of this series uses these, and Claude follows them.`:'Open a series in the Library to keep a glossary and notes for it.';presetList();stampList()}
 $('gloss').oninput=()=>{const s=serOf(curS);if(s){s.gloss=$('gloss').value;saveLibSoon()}};
 $('snotes').oninput=()=>{const s=serOf(curS);if(s){s.notes=$('snotes').value;saveLibSoon()}};
 const glossText=()=>$('gloss').value.split('\n').filter(l=>l.trim()&&!l.trim().startsWith('#')).join('\n');
@@ -2794,6 +2825,31 @@ function presetList(){const L=$('presets'),s=serOf(curS);if(!L)return;if(!s){L.i
   L.querySelectorAll('[data-clr]').forEach(b=>b.onclick=()=>{delete P[b.dataset.clr];s.presets=P;saveLib();presetList();render();list()});
   L.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{const k=b.dataset.use,boxes=pages.flatMap(p=>p.regs.filter(r=>(r.style||'normal')===k&&!r.free));
     const n=groupEdit(boxes,`Used the ${STYLE_NAME[k]} style`,()=>boxes.forEach(r=>{r.st={};r.font='auto'}));toast(n?`${n} box${n>1?'es':''} now use the ${STYLE_NAME[k]} style.`:`Every ${STYLE_NAME[k].toLowerCase()} box already uses it.`)})}
+/* ---------- stamps: images a series reuses, like a translated title logo. The image is kept in the database as 'stamp:<id>';
+   a placed stamp is a free box with r.stamp set, so it moves, resizes, undoes and exports like any other box ---------- */
+const stampBm=new Map(),stampP=new Map();
+const loadStamp=id=>stampP.get(id)||(stampP.set(id,DB.get('stamp:'+id).then(b=>b&&createImageBitmap(b)).then(bm=>{if(bm){stampBm.set(id,bm);render()}}).catch(()=>{})),stampP.get(id));
+const stampsReady=()=>Promise.all([...new Set(regs.filter(r=>r.stamp).map(r=>r.stamp))].map(loadStamp));
+function drawStamp(r,x){const bm=stampBm.get(r.stamp);if(!bm){loadStamp(r.stamp);return}
+  const k=Math.min(r.w/bm.width,r.h/bm.height),w=bm.width*k,h=bm.height*k;x.drawImage(bm,r.x+(r.w-w)/2,r.y+(r.h-h)/2,w,h)}
+function stampList(){const L=$('stamps'),s=serOf(curS);if(!L)return;$('stampadd').toggleAttribute('hidden',!s);
+  if(!s){L.innerHTML='<p class="note">Open a series to keep stamps for it.</p>';return}
+  const S=s.stamps||[];if(!S.length){L.innerHTML='<p class="note" style="margin:0;padding:10px 12px;border:0">No stamps yet. Add a PNG with a transparent background for the best result.</p>';return}
+  L.innerHTML=S.map(t=>`<div class="prow"><img class="sthumb" data-th="${t.id}" alt=""><b>${escH(t.name)}</b><small class="mute">${t.w} × ${t.h} px</small><span class="grp"><button data-place="${t.id}">Place on page</button><button class="icon ghost" data-unst="${t.id}" title="Remove from the series" aria-label="Remove the ${escH(t.name)} stamp">${ic('trash')}</button></span></div>`).join('');
+  L.querySelectorAll('[data-th]').forEach(im=>DB.get('stamp:'+im.dataset.th).then(b=>{if(b)im.src=URL.createObjectURL(b)}).catch(()=>{}));
+  L.querySelectorAll('[data-place]').forEach(b=>b.onclick=()=>placeStamp(S.find(t=>t.id===b.dataset.place)));
+  /* removing only takes it off the list: stamps already placed on pages keep their image */
+  L.querySelectorAll('[data-unst]').forEach(b=>b.onclick=()=>{s.stamps=S.filter(t=>t.id!==b.dataset.unst);saveLib();stampList()})}
+async function addStamp(file){const s=serOf(curS);if(!s)return toast('Open a series in the Library first.');let bm;try{bm=await createImageBitmap(file)}catch(e){return toast('KARS could not read that image.')}
+  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);try{await DB.put('stamp:'+id,file)}catch(e){return toast('Could not save the stamp: '+e.message)}
+  stampBm.set(id,bm);stampP.set(id,Promise.resolve());s.stamps=[...(s.stamps||[]),{id,name:file.name.replace(/\.[^.]+$/,'')||'Stamp',w:bm.width,h:bm.height}];saveLib();stampList();
+  toast('Stamp added. Press Place on page to put it on the page you are on.')}
+$('stampin').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)addStamp(f)};
+/* a placed stamp starts in the middle of what you are looking at, at most 60% of the page width */
+function placeStamp(t){if(!t)return;if(!pages[cur])return toast('Open a page first.');const W=src.width,H=src.height,cx=(cv.clientWidth/2-cam.ox)/cam.s,cy=(cv.clientHeight/2-cam.oy)/cam.s;
+  let w=Math.min(W*.6,t.w),h=w*t.h/t.w;if(h>H*.8){h=H*.8;w=h*t.w/t.h}
+  const r=newBox({x:Math.round(clamp(cx-w/2,0,W-w)),y:Math.round(clamp(cy-h/2,0,H-h)),w:Math.round(w),h:Math.round(h)},{free:true,stamp:t.id,status:`Stamp: ${t.name}. Drag it to move it; drag an edge or corner to resize it.`});
+  regs.push(r);logG({t:'add',box:r,idx:regs.length-1});sel=regs.length-1;list(true);render();toast('Stamp placed. Drag it where you want it.')}
 function savePreset(r){const s=serOf(curS);if(!s)return toast('Open a series in the Library first.');const k=r.style||'normal';s.presets={...(s.presets||{}),[k]:{font:r.font!=='auto'&&F[r.font]?r.font:(preset(r)&&preset(r).font)||null,st:{...((preset(r)||{}).st||{}),...(r.st||{})}}};
   groupEdit([r],'Saved a series style',()=>{r.st={};r.font='auto'});saveLib();presetList();list();render();toast(`Saved as the ${STYLE_NAME[k]} style for “${s.title}”. Every ${STYLE_NAME[k].toLowerCase()} box without its own changes uses it.`,4000)}
 
