@@ -1,0 +1,53 @@
+KARS - manga and manhwa translation editor
+==========================================
+
+WINDOWS (first time)
+1. Right-click the ZIP and choose "Extract All". Do not run anything from inside the ZIP.
+2. Open the KARS folder and double-click  install-and-start-kars.bat
+   - If Windows says "Windows protected your PC", click "More info", then "Run anyway".
+   - It installs Node.js and Claude Code if they are missing (this can take a few minutes).
+   - Claude Code opens once: sign in with your Claude account, then type /exit
+3. KARS opens in your browser at http://localhost:8787
+   Keep the black window open while you work. Close it to stop KARS.
+
+WINDOWS (every time after that)
+   Double-click  start-kars.bat
+
+MAC / LINUX
+   Install Node.js from https://nodejs.org, then in a terminal:
+     npm install -g @anthropic-ai/claude-code
+     claude            (sign in once, then type /exit)
+     sh start-kars.sh  (run this from inside the KARS folder)
+
+TRANSLATION ENGINES (Settings tab)
+- Claude on this PC: the best quality. Uses your own Claude account's usage (needs a paid Claude plan).
+- Google (free): no account and no key needed. Good for trying KARS out.
+- DeepL: paste your own DeepL API key (free plan at deepl.com/pro-api).
+
+HOW TO USE
+1. Library > New series > New chapter
+2. Drop the chapter's page images (or a ZIP/CBZ) onto the page area
+3. Find bubbles, then Translate page (or Translate chapter)
+4. Check each box on the right, then Export page / Export chapter
+   "Side by side" shows the original and translation together.
+
+WHAT'S INSIDE
+- Library: a series for each manga or manhwa, with its chapters. Back up and Restore keep it safe.
+- Series tab: a glossary and translation notes for the series. Claude follows them.
+- Each box: status (Translated, Proofread, Typeset, Approved), a note for the proofreader,
+  and the book button to add a name to the glossary.
+- Check: finds missing translations, text that does not fit, glossary mistakes and typos before export.
+- Ctrl+H: find and replace in a page, the chapter or the whole series.
+- Heal (J): paint over text drawn on the art and the art behind it is rebuilt.
+- Menu (...): export the script as .txt or Word, and import it back after editing.
+- Team series and comments work on the KARS site (claude.ai), not in this PC version.
+
+Your work is saved in your browser automatically. Use the menu (...) > "Save chapter file (.kars)"
+for backups or to send a chapter to someone else.
+
+Only use KARS on series you have the rights to translate.
+
+OMNIROUTE (optional)
+If you run the OmniRoute AI gateway on this PC (https://github.com/diegosouzapw/OmniRoute),
+start it, start KARS, then in Settings choose Engine: OmniRoute. The address is usually
+http://localhost:20128/v1. Pick a model that can see images to read the bubbles.
