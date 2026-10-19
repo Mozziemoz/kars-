@@ -916,6 +916,8 @@ textarea{resize:vertical;min-height:52px}
 #stage.painting #cv{cursor:copy!important}
 #stylebar{position:absolute;left:0;right:0;bottom:72px;z-index:5;width:max-content;margin:0 auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 32px);padding:6px 6px 6px 12px;background:var(--panel);border:1px solid var(--accent);border-radius:10px;box-shadow:var(--shadow);font-size:12.5px;color:var(--ink)}
 #stylebar b{font-weight:600}#stylebar button{height:30px;font-size:12px;padding:0 10px}
+#cropbar{position:absolute;left:0;right:0;bottom:72px;z-index:5;width:max-content;max-width:calc(100% - 32px);margin:0 auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;padding:6px 6px 6px 12px;background:var(--panel);border:1px solid var(--accent);border-radius:10px;box-shadow:var(--shadow);font-size:12.5px;color:var(--ink)}
+#cropbar b{font-weight:600}#cropbar button{height:30px;font-size:12px;padding:0 10px}#cropbar label{display:flex;align-items:center;gap:6px;color:var(--ink2);font-size:12px}
 .prow .sthumb{grid-row:1/3;width:44px;height:30px;object-fit:contain;background:repeating-conic-gradient(var(--sunk) 0 25%,var(--raise) 0 50%) 0 0/10px 10px;border-radius:4px}
 .prow:has(.sthumb){grid-template-columns:auto 1fr auto}.prow:has(.sthumb) b,.prow:has(.sthumb) small{grid-column:2}.prow:has(.sthumb) .grp{grid-column:3}
 .reg.folded>:not(.top){display:none}                       /* keep: display:none is asserted by tests */
@@ -1293,6 +1295,7 @@ aside{position:relative}
         <button data-tool="heal" aria-pressed="false" title="Heal: paint over text drawn on the art. When you let go, the art behind it is rebuilt from its surroundings (J)" aria-label="Heal">H</button>
         <button data-tool="pick" aria-pressed="false" title="Pick a colour from the page (I)" aria-label="Colour picker">I</button>
         <button data-tool="text" aria-pressed="false" title="Text box: drag on the page to place your own text (T)" aria-label="Text box">T</button>
+        <button data-tool="crop" aria-pressed="false" title="Crop &amp; copy: drag over part of the page to copy it, then place the copy, save it as a stamp or download it (C)" aria-label="Crop and copy">C</button>
         <button id="pshape" class="pshape" title="Box shape: click to switch between rectangle, rounded, oval and diamond. Applies to the selected box and to new boxes." aria-label="Box shape"></button>
         <span class="psep"></span>
         <span class="ptarget" role="group" aria-label="Paint on">
@@ -1448,6 +1451,7 @@ const IC={folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-
   newdoc:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/>',again:'<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>'};
 IC.cursor='<path d="M5 3l14 8-6 2-2 6z"/>';IC.brush='<path d="M9.5 14.5 18 6a2 2 0 0 1 3 3l-8.5 8.5"/><path d="M9.5 14.5c-2 0-3.5 1.5-3.5 3.5 0 1.5-1 2-2 2 1 1 2.5 1 4 1 2.5 0 4-1.6 4-4z"/>';IC.eraser='<path d="M16 4l5 5-10 10H6l-3-3z"/><path d="M11 19h10M9 9l6 6"/>';IC.pick='<path d="m14 7 3 3M4 20l1-4 9.5-9.5a2.1 2.1 0 0 1 3 3L8 19z"/><path d="M16 4.5a2.1 2.1 0 0 1 3 0l.5.5a2.1 2.1 0 0 1 0 3"/>';IC.textbox='<path d="M4 7V5h16v2M12 5v14M9 19h6"/>';
 IC.palette='<path d="M12 3a9 9 0 0 0 0 18c1.4 0 2-1 2-2 0-.6-.3-1-.6-1.4-.3-.4-.6-.8-.6-1.4 0-1 .9-1.7 2-1.7H17a4 4 0 0 0 4-4c0-4.1-4-7.5-9-7.5z"/><circle cx="7.5" cy="11.5" r="1.2" fill="currentColor"/><circle cx="10" cy="7.5" r="1.2" fill="currentColor"/><circle cx="14.5" cy="7.5" r="1.2" fill="currentColor"/><circle cx="17" cy="11" r="1.2" fill="currentColor"/>';IC.edit='<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/>';IC.note='<path d="M5 4h14v11l-5 5H5z"/><path d="M14 20v-5h5M8.5 9h7M8.5 12.5h4"/>';IC.book='<path d="M3 5.5c2.7-1.2 5.7-1 9 .8 3.3-1.8 6.3-2 9-.8V19c-2.7-1.2-5.7-1-9 .8-3.3-1.8-6.3-2-9-.8z"/><path d="M12 6.3v13.5"/>';IC.check='<path d="m4.5 12.5 5 5L20 7"/>';IC.find='<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>';IC.heal='<path d="m13.8 3.7 6.5 6.5a2.5 2.5 0 0 1 0 3.5l-6.6 6.6a2.5 2.5 0 0 1-3.5 0l-6.5-6.5a2.5 2.5 0 0 1 0-3.5l6.6-6.6a2.5 2.5 0 0 1 3.5 0z"/><path d="M10.2 10.2h.01M13.8 10.2h.01M10.2 13.8h.01M13.8 13.8h.01M12 12h.01"/>';IC.chat='<path d="M4 5.5h16v10.5H10l-5 4v-4H4z"/><path d="M8 9.5h8M8 12.5h5"/>';IC.team='<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c.6-3 2.8-4.8 5.5-4.8s4.9 1.8 5.5 4.8"/><circle cx="17" cy="9.5" r="2.3"/><path d="M15.6 14.4c2.5-.4 4.5 1.2 5 4.1"/>';IC.chev='<path d="m6 9 6 6 6-6"/>';IC.library='<path d="M4 4h4v16H4zM10 4h4v16h-4zM15.6 5.3l3.4-.9 3.5 15.3-3.4.9z"/>';IC.compare='<rect x="3" y="4" width="8" height="16" rx="1.5"/><rect x="13" y="4" width="8" height="16" rx="1.5"/>';IC.history='<path d="M3.5 12a8.5 8.5 0 1 0 2.5-6L3.5 8.5"/><path d="M3.5 4v4.5H8M12 7.5V12l3 2"/>';IC.unlink='<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.2 8.2 20 20M8.2 15.8 20 4"/>';IC.hide='<path d="M5 12h14"/><path d="m8 8-3 4 3 4"/>';
+IC.crop='<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M2 6h14a2 2 0 0 1 2 2v14"/>';
 IC.roller='<rect x="4" y="3" width="14" height="6" rx="1.5"/><path d="M18 6h2v5h-8v3"/><rect x="10" y="14" width="4" height="7" rx="1"/>';  /* paste a copied text style */
 const ic=n=>`<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${IC[n]}</svg>`;
 $$('[data-ic]').forEach(el=>el.insertAdjacentHTML('afterbegin',ic(el.dataset.ic)));
@@ -1567,7 +1571,7 @@ const cardOf=new Map(),inCard=(r,sel)=>{const c=cardOf.get(r.id);return c&&c.isC
 function syncBox(r){const q=k=>inCard(r,`[data-${k}="${r.id}"]`);if(!q('t'))return;q('fp').textContent=r.txt||r.src||'';
   q('src').value=r.src;q('t').value=r.txt;q('n').value=r.note||'';const sg=q('sg');sg.value=sg.dataset.v=stageOf(r);const ks=q('ks');if(ks)ks.value=r.style||'normal';{const f=q('f');if(![...f.options].some(o=>o.value===r.font))f.add(new Option(fontLabel(r.font),r.font))}q('f').value=r.font;q('f').options[0].textContent=`Auto: ${F[autoKey(r)].n}`;q('i').checked=!!r.italic;q('o').checked=!!r.outline;
   {const oc=q('oc'),lt=.299*(r.ink||[0,0,0])[0]+.587*(r.ink||[0,0,0])[1]+.114*(r.ink||[0,0,0])[2]>140;if(oc)oc.value=stOf(r).ocolor||autoOutline(r,lt)}
-  q('tag').textContent=[r.stamp?'stamp':r.free&&'text box',r.lang&&LN[r.lang],r.style!=='normal'&&r.style,r.flat&&'flat fill'].filter(Boolean).join(' · ');q('t').closest('.reg').classList.toggle('done',!!(r.txt.trim()||r.stamp))}
+  q('tag').textContent=[r.clip?'copied area':r.stamp?'stamp':r.free&&'text box',r.lang&&LN[r.lang],r.style!=='normal'&&r.style,r.flat&&'flat fill'].filter(Boolean).join(' · ');q('t').closest('.reg').classList.toggle('done',!!(r.txt.trim()||r.stamp))}
 /* show a box's text style in its panel */
 function syncStyle(r){const P=inCard(r,`[data-styl="${r.id}"]`);if(!P)return;const st=stOf(r),hex=c=>'#'+c.map(v=>Math.round(v).toString(16).padStart(2,'0')).join('');
   const unit={size:'%',thick:'',ow:'',ls:'',lh:'%',angle:'°',glow:''};
@@ -1604,7 +1608,7 @@ addEventListener('keydown',e=>{const k=e.key.toLowerCase(),a=document.activeElem
   else if(k==='+'||k==='='){zoomBy(1.25)}else if(k==='-'){zoomBy(.8)}else if(k==='0'){fit()}else if(k==='v'&&loaded)setView(!showOrig)
   else if(loaded&&!e.altKey&&k==='h')showTools(paintHidden())
   else if(loaded&&!e.altKey&&k==='l')setTarget(paintOnImage?'layer':'image')
-  else if(loaded&&!e.altKey&&({a:'select',b:'brush',e:'eraser',j:'heal',i:'pick',t:'text'})[k])setTool(({a:'select',b:'brush',e:'eraser',j:'heal',i:'pick',t:'text'})[k])
+  else if(loaded&&!e.altKey&&({a:'select',b:'brush',e:'eraser',j:'heal',i:'pick',t:'text',c:'crop'})[k])setTool(({a:'select',b:'brush',e:'eraser',j:'heal',i:'pick',t:'text',c:'crop'})[k])
   else if(k===' '&&loaded){e.preventDefault();if(!spaceDown){spaceDown=true;if(!drag)cv.style.cursor='grab'}}});
 addEventListener('keyup',e=>{if(e.key===' '){spaceDown=false;if(!drag)cv.style.cursor='crosshair'}});
 $('undo').onclick=undo;$('redo').onclick=redo;
@@ -1613,7 +1617,7 @@ $('undo').onclick=undo;$('redo').onclick=redo;
 const DB=(()=>{let dbp;const open=()=>dbp||(dbp=new Promise((ok,no)=>{const q=indexedDB.open('kars',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error)}));
   const run=(mode,fn)=>open().then(db=>new Promise((ok,no)=>{const t=db.transaction('kv',mode),rq=fn(t.objectStore('kv'));t.oncomplete=()=>ok(rq&&rq.result);t.onerror=t.onabort=()=>no(t.error)}));
   return{get:k=>run('readonly',s=>s.get(k)),put:(k,v)=>run('readwrite',s=>s.put(v,k)),del:k=>run('readwrite',s=>s.delete(k)),clear:()=>run('readwrite',s=>s.clear())}})();
-const KEEP=['note','stage','lay','healed','fold','id','x','y','w','h','src','txt','font','style','match','italic','outline','lang','status','st','manual','free','ink','size','stamp'];
+const KEEP=['note','stage','lay','healed','fold','id','x','y','w','h','src','txt','font','style','match','italic','outline','lang','status','st','manual','free','ink','size','stamp','clip'];
 const projState=()=>({v:1,uid,cur,pages:pages.map(p=>({id:p.id,name:p.name,type:p.blob.type,lang:p.lang||null,hasPaint:!!p.hasPaint,boxes:p.regs.map(r=>Object.fromEntries(KEEP.map(k=>[k,r[k]])))}))});
 let saveT=0,restoring=false,saveWarned=false,ready=false;  /* ready: nothing is saved until the last session has been restored */
 function scheduleSave(){if(restoring||!ready)return;clearTimeout(saveT);$('saved').textContent=pages.length?'Saving…':'';$('saved').dataset.state=pages.length?'saving':'';saveT=setTimeout(saveNow,800)}
@@ -1877,7 +1881,8 @@ function frame(){raf=0;if(!gl||!loaded||exporting||gl.isContextLost())return;
   if(hoverPt&&!drag&&(tool==='brush'||tool==='eraser'||tool==='heal')){const rr=pSize()/2,dt=Math.max(1,1.5*k),n=Math.max(24,Math.min(96,Math.round(rr*cam.s)));col(1,1,1,.9);
     for(let i=0;i<n;i++){const a=i/n*Math.PI*2,x0=hoverPt.x+Math.cos(a)*rr,y0=hoverPt.y+Math.sin(a)*rr;quads([[x0-dt,y0-dt,x0+dt,y0+dt,0,0,0,0]])}
     col(0,0,0,.8);for(let i=0;i<n;i++){const a=(i+.5)/n*Math.PI*2,x0=hoverPt.x+Math.cos(a)*rr,y0=hoverPt.y+Math.sin(a)*rr;quads([[x0-dt/2,y0-dt/2,x0+dt/2,y0+dt/2,0,0,0,0]])}}
-  if(drag&&drag.mode==='new'){C(pal.marq);quads([[Math.min(drag.x0,drag.x1),Math.min(drag.y0,drag.y1),Math.max(drag.x0,drag.x1),Math.max(drag.y0,drag.y1),0,0,0,0]])}
+  if(drag&&(drag.mode==='new'||drag.mode==='crop')){C(pal.marq);quads([[Math.min(drag.x0,drag.x1),Math.min(drag.y0,drag.y1),Math.max(drag.x0,drag.x1),Math.max(drag.y0,drag.y1),0,0,0,0]])}
+  if(cropSel&&!drag){const g=cropSel;gl.uniform2f(P.col.u.u_d,6*k,4*k);C(pal.halo);stroke(g,3*k);C(pal.line,1);stroke(g,1.5*k);gl.uniform2f(P.col.u.u_d,0,0)}
   if(regs.length>1){gl.useProgram(P.tex.p);regs.forEach((b,i)=>{if(i===sel)return;const L=label(i+1);gl.bindTexture(gl.TEXTURE_2D,L.tex);quads([[b.x,b.y,b.x+L.w*k,b.y+L.h*k,0,0,1,1]])})}
   $('zoomv').textContent=Math.round(cam.s*100)+'%';if(busy.length&&!calm.matches)paint();if(ied.r)iedPlace()}
 function fit(){if(!loaded)return;const w=cv.clientWidth,h=cv.clientHeight;cam.s=Math.max(.05,Math.min((w-48)/src.width,(h-48)/src.height,2));cam.ox=(w-src.width*cam.s)/2;cam.oy=(h-src.height*cam.s)/2;fitMode=true;paint()}
@@ -1902,11 +1907,11 @@ function showTools(on){showWin('tools',on)}
 function setTarget(t){paintOnImage=t==='image';$('pOnLayer').setAttribute('aria-pressed',!paintOnImage);$('pOnImage').setAttribute('aria-pressed',paintOnImage);
   $$('#paintbar [data-tool=eraser]')[0].title=paintOnImage?'Eraser: wipes the page to white (E)':'Eraser: removes your paint (E)';savePaintPrefs()}
 $('pOnLayer').onclick=()=>setTarget('layer');$('pOnImage').onclick=()=>setTarget('image');
-const TOOL_ICON={select:'cursor',brush:'brush',eraser:'eraser',heal:'heal',pick:'pick',text:'textbox'};
+const TOOL_ICON={select:'cursor',brush:'brush',eraser:'eraser',heal:'heal',pick:'pick',text:'textbox',crop:'crop'};
 $$('#paintbar [data-tool]').forEach(b=>{b.innerHTML=ic(TOOL_ICON[b.dataset.tool]);b.onclick=()=>setTool(b.dataset.tool)});
 function setTool(t){tool=t;$$('#paintbar [data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));if(t!=='select'){sel=-1;markSel()}
   cv.style.cursor=t==='text'?'text':'crosshair';hoverPt=null;paint();
-  if(t==='text')toast('Drag on the page to place a text box.',2500)}
+  if(t==='text')toast('Drag on the page to place a text box.',2500);if(t==='crop')toast('Drag over the part of the page you want to copy.',2500)}
 const pSize=()=>+$('psize').value,pAlpha=()=>+$('palpha').value/100;
 $('psize').oninput=()=>{$('psizev').textContent=$('psize').value;paint()};$('palpha').oninput=()=>{$('palphav').textContent=$('palpha').value+'%'};
 try{const ps=JSON.parse(localStorage.getItem('kars_paint')||'{}');if(ps.c)$('pcolor').value=ps.c;if(ps.s){$('psize').value=ps.s;$('psizev').textContent=ps.s}if(ps.a){$('palpha').value=ps.a;$('palphav').textContent=ps.a+'%'}
@@ -2113,6 +2118,7 @@ cv.onpointerdown=e=>{if(!loaded)return;pageFocus=false;cv.setPointerCapture(e.po
   if(e.button>0)return;const p=pos(e);
   if(tool==='brush'||tool==='eraser'||tool==='heal'||tool==='pick')return paintStart(e,p);
   if(tool==='text'){drag={mode:'new',free:true,x0:p.x,y0:p.y,x1:p.x,y1:p.y};return paint()}
+  if(tool==='crop'){cropSel=null;drag={mode:'crop',x0:p.x,y0:p.y,x1:p.x,y1:p.y};return paint()}
   const h=e.shiftKey?null:hit(p);
   if(h&&styleClip&&!h.r.stamp){sel=regs.indexOf(h.r);markSel();if(h.r.id!==styleClip.from)pasteStyle([h.r]);return paint()}
   if(h){sel=regs.indexOf(h.r);markSel();drag={...h,p0:p,g:{x:h.r.x,y:h.r.y,w:h.r.w,h:h.r.h},before:bs(h.r)}}
@@ -2124,6 +2130,7 @@ cv.onpointermove=e=>{if(!loaded)return;if(ptrs.has(e.pointerId))ptrs.set(e.point
   if(drag&&drag.mode==='paint'){paintSeg(drag.last,p);drag.last=p;return}
   if(!drag&&(tool==='brush'||tool==='eraser'||tool==='heal')){hoverPt=p;cv.style.cursor=spaceDown?'grab':'crosshair';return paint()}
   if(!drag&&tool!=='select'){cv.style.cursor=spaceDown?'grab':tool==='text'?'text':'crosshair';return}
+  if(drag&&drag.mode==='crop'){drag.x1=clamp(p.x,0,src.width);drag.y1=clamp(p.y,0,src.height);return paint()}
   if(!drag){const h=e.shiftKey||spaceDown?null:hit(p);cv.style.cursor=spaceDown?'grab':!h?'crosshair':h.mode==='move'?'move':h.cx===h.cy?'nwse-resize':'nesw-resize';return}
   if(drag.mode==='pan'){const l=local(e);cam.ox=drag.ox+l.x-drag.l0.x;cam.oy=drag.oy+l.y-drag.l0.y;fitMode=false;return paint()}
   if(drag.mode==='new'){drag.x1=p.x;drag.y1=p.y;return paint()}
@@ -2138,6 +2145,8 @@ cv.onpointerup=cv.onpointercancel=e=>{ptrs.delete(e.pointerId);if(pinch){if(ptrs
   if(!drag)return;const d=drag;drag=null;
   if(d.mode==='pan'){cv.style.cursor=spaceDown?'grab':'crosshair';return}
   if(d.mode==='paint')return paintEnd(d);
+  if(d.mode==='crop'){const x=Math.round(Math.max(0,Math.min(d.x0,d.x1))),y=Math.round(Math.max(0,Math.min(d.y0,d.y1))),w=Math.round(Math.min(src.width,Math.max(d.x0,d.x1)))-x,h=Math.round(Math.min(src.height,Math.max(d.y0,d.y1)))-y;
+    if(e.type!=='pointercancel'&&w>=6&&h>=6)cropDone({x,y,w,h});return paint()}
   if(d.mode!=='new'){const r=d.r,was=boxArea({...d.g,patch:r.patch,px:r.px,py:r.py});r.editing=false;
     if(bs(r)!==d.before){logG({t:'box',box:r,before:d.before,label:d.mode==='move'?'Moved the box':'Resized the box'});prep(r);syncBox(r)}  /* only this card can change */
     return renderBox(was,r)}
@@ -2934,6 +2943,26 @@ async function addStamp(file){const s=serOf(curS);if(!s)return toast('Open a ser
   stampBm.set(id,bm);stampP.set(id,Promise.resolve());s.stamps=[...(s.stamps||[]),{id,name:file.name.replace(/\.[^.]+$/,'')||'Stamp',w:bm.width,h:bm.height}];saveLib();stampList();
   toast('Stamp added. Press Place on page to put it on the page you are on.')}
 $('stampin').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)addStamp(f)};
+/* ---------- crop & copy: a rectangle of the page (the original art, or with your translation if you tick it) can be placed
+   as a movable copy (to patch over text by hand), copied to the clipboard, saved as a series stamp or downloaded ---------- */
+let cropSel=null;
+function cropCanvas(g,withText){const c=document.createElement('canvas');c.width=g.w;c.height=g.h;c.getContext('2d').drawImage(withText?composite():src,g.x,g.y,g.w,g.h,0,0,g.w,g.h);return c}
+const cropBlob=g=>new Promise(ok=>cropCanvas(g,$('cropwt')&&$('cropwt').checked).toBlob(ok,'image/png'));
+function cropDone(g){cropSel=g;let b=$('cropbar');if(!b){b=document.createElement('div');b.id='cropbar';b.setAttribute('role','status');$('stage').appendChild(b)}
+  b.innerHTML=`<span>${ic('crop')} <b>${g.w} × ${g.h} px selected.</b></span><label><input type="checkbox" id="cropwt"> With translation</label><button class="primary" data-cr="place">Place a copy</button><button data-cr="clip">Copy</button><button data-cr="stamp">Save as stamp</button><button data-cr="dl">Download</button><button class="ghost" data-cr="done">Done</button>`;
+  b.querySelector('[data-cr=place]').onclick=()=>placeCopy(g);
+  b.querySelector('[data-cr=clip]').onclick=async()=>{try{const bl=await cropBlob(g);await navigator.clipboard.write([new ClipboardItem({'image/png':bl})]);toast('Copied. You can paste it into another app.')}catch(e){toast('The browser did not allow copying to the clipboard. Use Download instead.',4000)}};
+  b.querySelector('[data-cr=stamp]').onclick=async()=>{const bl=await cropBlob(g);addStamp(new File([bl],`${baseName(pages[cur])} crop.png`,{type:'image/png'}))};
+  b.querySelector('[data-cr=dl]').onclick=async()=>save(await cropBlob(g),baseName(pages[cur])+'-crop.png');
+  b.querySelector('[data-cr=done]').onclick=cropEnd;paint()}
+function cropEnd(){cropSel=null;$('cropbar')?.remove();paint()}
+addEventListener('keydown',e=>{if(e.key==='Escape'&&cropSel)cropEnd()});
+/* the copy is a free box holding the picture, placed a little below and to the right of the original so you can drag it into place */
+async function placeCopy(g){const bl=await cropBlob(g),id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  try{await DB.put('stamp:'+id,bl)}catch(e){return toast('Could not keep the copy: '+e.message)}
+  const bm=await createImageBitmap(bl);stampBm.set(id,bm);stampP.set(id,Promise.resolve());
+  const r=newBox({x:Math.min(src.width-g.w,g.x+16),y:Math.min(src.height-g.h,g.y+16),w:g.w,h:g.h},{free:true,stamp:id,clip:true,status:'A copy of part of the page. Drag it over what you want to cover; drag a corner to resize it.'});
+  regs.push(r);logG({t:'add',box:r,idx:regs.length-1});cropEnd();setTool('select');sel=regs.length-1;listAdd(r);markSel();renderBox(r);toast('Copy placed. Drag it where you want it.',2500)}
 /* a placed stamp starts in the middle of what you are looking at, at most 60% of the page width */
 function placeStamp(t){if(!t)return;if(!pages[cur])return toast('Open a page first.');const W=src.width,H=src.height,cx=(cv.clientWidth/2-cam.ox)/cam.s,cy=(cv.clientHeight/2-cam.oy)/cam.s;
   let w=Math.min(W*.6,t.w),h=w*t.h/t.w;if(h>H*.8){h=H*.8;w=h*t.w/t.h}
