@@ -914,6 +914,7 @@ textarea{resize:vertical;min-height:52px}
 .fontrow .cs{height:28px;padding:0 9px;gap:6px;font-size:12px}.fontrow .cs svg.i{width:14px;height:14px}
 .fontrow .cs.on{color:var(--accent-text);background:var(--accent-soft);border-color:color-mix(in oklab,var(--accent) 40%,transparent)}
 #stage.painting #cv{cursor:copy!important}
+.stg .stgh{grid-column:1/-1;margin-top:8px;padding-top:10px;border-top:1px solid var(--line);font:600 10px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
 #stylebar{position:absolute;left:0;right:0;bottom:72px;z-index:5;width:max-content;margin:0 auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 32px);padding:6px 6px 6px 12px;background:var(--panel);border:1px solid var(--accent);border-radius:10px;box-shadow:var(--shadow);font-size:12.5px;color:var(--ink)}
 #stylebar b{font-weight:600}#stylebar button{height:30px;font-size:12px;padding:0 10px}
 #cropbar{position:absolute;left:0;right:0;bottom:72px;z-index:5;width:max-content;max-width:calc(100% - 32px);margin:0 auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;padding:6px 6px 6px 12px;background:var(--panel);border:1px solid var(--accent);border-radius:10px;box-shadow:var(--shadow);font-size:12.5px;color:var(--ink)}
@@ -1574,9 +1575,9 @@ function syncBox(r){const q=k=>inCard(r,`[data-${k}="${r.id}"]`);if(!q('t'))retu
   q('tag').textContent=[r.clip?'copied area':r.stamp?'stamp':r.free&&'text box',r.lang&&LN[r.lang],r.style!=='normal'&&r.style,r.flat&&'flat fill'].filter(Boolean).join(' · ');q('t').closest('.reg').classList.toggle('done',!!(r.txt.trim()||r.stamp))}
 /* show a box's text style in its panel */
 function syncStyle(r){const P=inCard(r,`[data-styl="${r.id}"]`);if(!P)return;const st=stOf(r),hex=c=>'#'+c.map(v=>Math.round(v).toString(16).padStart(2,'0')).join('');
-  const unit={size:'%',thick:'',ow:'',ls:'',lh:'%',angle:'°',glow:''};
+  const unit={size:'%',thick:'',ow:'',ls:'',lh:'%',angle:'°',glow:'',skew:'°'};
   P.querySelectorAll('[data-k]').forEach(el=>{const k=el.dataset.k;if(el.type==='checkbox')el.checked=!!st[k];
-    else if(el.type==='color')el.value=st[k]||(k==='color'?hex(r.ink||[0,0,0]):k==='ocolor'?autoOutline(r,.299*(r.ink||[0,0,0])[0]+.587*(r.ink||[0,0,0])[1]+.114*(r.ink||[0,0,0])[2]>140):(.299*(r.ink||[0,0,0])[0]+.587*(r.ink||[0,0,0])[1]+.114*(r.ink||[0,0,0])[2]>140?'#111111':'#ffffff'));
+    else if(el.type==='color')el.value=st[k]||(k==='color'?hex(r.ink||[0,0,0]):k==='exc'?sideOf(st,st.color||`rgb(${r.ink||[0,0,0]})`):k==='ocolor'?autoOutline(r,.299*(r.ink||[0,0,0])[0]+.587*(r.ink||[0,0,0])[1]+.114*(r.ink||[0,0,0])[2]>140):(.299*(r.ink||[0,0,0])[0]+.587*(r.ink||[0,0,0])[1]+.114*(r.ink||[0,0,0])[2]>140?'#111111':'#ffffff'));
     else el.value=st[k];const o=el.nextElementSibling;if(o&&o.tagName==='OUTPUT')o.textContent=st[k]+(unit[k]||'')});
   P.querySelectorAll('[data-al]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.al===st.align))}
 const remove=b=>{const i=regs.indexOf(b);if(i>=0)regs.splice(i,1)};
@@ -1816,7 +1817,7 @@ function partLayer(){const A=[];for(const R of layerParts.splice(0)){const o=A.f
     if(o){o.x0=Math.min(o.x0,R.x0);o.y0=Math.min(o.y0,R.y0);o.x1=Math.max(o.x1,R.x1);o.y1=Math.max(o.y1,R.y1);if(R.box)o.boxes.push(R.box)}else A.push({...R,boxes:R.box?[R.box]:[]})}
   if(!layTiles.length||layTiles.length!==pageTiles.length){layerDirty=true;return false}
   for(const R of A){const w=R.x1-R.x0,h=R.y1-R.y0;if(w<=0||h<=0)continue;
-    lx.save();lx.beginPath();lx.rect(R.x0,R.y0,w,h);lx.clip();lx.clearRect(R.x0,R.y0,w,h);paintLayer(lx);lx.restore();
+    lx.save();lx.beginPath();lx.rect(R.x0,R.y0,w,h);lx.clip();lx.clearRect(R.x0,R.y0,w,h);paintClip=R;paintLayer(lx);paintClip=null;lx.restore();
     /* the edited box's lettering now reaching past the area (a bigger size, say) needs the full rebuild; neighbours are unchanged outside it */
     if(R.boxes.some(r=>r._ext&&(r._ext.x0<R.x0&&R.x0>0||r._ext.y0<R.y0&&R.y0>0||r._ext.x1>R.x1&&R.x1<src.width||r._ext.y1>R.y1&&R.y1<src.height))){layerDirty=true;return false}
     for(const t of layTiles){const I=cut(R,t);if(!I)continue;const iw=I.x1-I.x0,ih=I.y1-I.y0;tmp.width=iw;tmp.height=ih;tmx.clearRect(0,0,iw,ih);tmx.drawImage(lay,I.x0,I.y0,iw,ih,0,0,iw,ih);
@@ -2496,7 +2497,7 @@ $('apply').onclick=()=>{const n=groupEdit(regs,'Applied the glossary',()=>regs.f
 function wrap(x,text,w){const out=[],cjk=$('tgt').value==='ja',sep=cjk?'':' ';for(const p of text.split('\n')){let line='';
   for(const word of cjk?Array.from(p):p.split(' ')){const t=line?line+sep+word:word;if(x.measureText(t).width<=w||!line)line=t;else{out.push(line);line=word}}out.push(line)}return out}
 /* text style per box (r.st): size %, weight, thick(ness), color, outline color/width, letter and line spacing, align, caps, angle, fit */
-const ST_DEF={size:100,weight:0,thick:0,color:'',ocolor:'',ow:16,ls:0,lh:115,align:'center',caps:false,angle:0,fit:true,vert:false,glow:0,gcolor:'',gon:false,grad:'#d9a441',gdir:'v'};
+const ST_DEF={size:100,weight:0,thick:0,color:'',ocolor:'',ow:16,ls:0,lh:115,align:'center',caps:false,angle:0,fit:true,vert:false,glow:0,gcolor:'',gon:false,grad:'#d9a441',gdir:'v',ext:0,exd:'dr',exc:'',sh:0,shb:6,shd:'dr',shc:'#000000',bev:0,ow2:0,oc2:'#000000',arc:0,skew:0,persp:0};
 /* the series' look for this kind of text, if one was saved (see the Series tab) */
 const preset=r=>{const s=serOf(curS);return s&&s.presets&&s.presets[r.style||'normal']||null};
 const stOf=r=>({...ST_DEF,...((preset(r)||{}).st||{}),...(r.st||{})});
@@ -2534,9 +2535,50 @@ function bgLum(r){const k=r.x+','+r.y+','+r.w+','+r.h;if(r._bgk===k)return r._bg
 /* Auto outline: the opposite of the text colour, unless that would vanish into what is behind the box
    (a white outline on a white bubble): then the colour that stands out from the background */
 const autoOutline=(r,light)=>{const L=bgLum(r);return light?(L<70?'#ffffff':'#111111'):(L>185?'#111111':'#ffffff')};
+/* ---------- text effects: 3D depth, drop shadow, bevel, a second outline, arc, slant and perspective. The lettering and its effects
+   are drawn once into an offscreen canvas (kept until the box's text or look changes), then placed, slanted and bent onto the page ---------- */
+const FXDIR={dr:[1,1],d:[0,1],dl:[-1,1],r:[1,0],l:[-1,0],ur:[1,-1],u:[0,-1],ul:[-1,-1]},unitDir=k=>{const v=FXDIR[k]||FXDIR.dr,n=Math.hypot(v[0],v[1]);return[v[0]/n,v[1]/n]};
+const cx1=document.createElement('canvas').getContext('2d');
+const rgbOf=c=>{cx1.fillStyle='#000';cx1.fillStyle=c;const v=cx1.fillStyle;return v[0]==='#'?[1,3,5].map(i=>parseInt(v.slice(i,i+2),16)):(v.match(/[\d.]+/g)||[0,0,0]).slice(0,3).map(Number)};
+const mixHex=(a,b,t)=>'#'+a.map((v,i)=>Math.round(v+(b[i]-v)*t).toString(16).padStart(2,'0')).join('');
+const sideOf=(st,fill)=>st.exc||mixHex(rgbOf(fill),[0,0,0],.55);  /* Auto 3D side: the text colour, darkened */
+function drawFx(r0,x,L,fill,light){const {st,s,ol,th}=L,each=(g,f)=>L.items.forEach(it=>f(it.t,it.x,it.y));let ax=0,ay=0;
+  x.font=L.font;setLS(x,L.vert?'0px':st.ls*s/100+'px');
+  L.items.forEach(it=>{const w=L.vert?s:x.measureText(it.t).width,a=L.vert||st.align==='center'?it.x-w/2:st.align==='left'?it.x:it.x-w;ax=Math.max(ax,Math.abs(a),Math.abs(a+w));ay=Math.max(ay,Math.abs(it.y)+s*.6)});
+  const ow2=st.ow2?s*st.ow2/100:0,dep=st.ext?s*st.ext/100:0,shd=st.sh?s*st.sh/100:0,shb=st.sh?st.shb*s/40:0,glow=st.glow?st.glow*s/7:0;
+  const edge=ol+th+ow2*2,pad=Math.ceil(edge/2+glow+4+dep+shd+shb*2),hw=Math.ceil(ax+pad),hh=Math.ceil(ay+pad),W=hw*2,H=hh*2;
+  const key=JSON.stringify([L.items,L.font,s,ol,th,st,fill,x.direction,ol&&!st.ocolor?Math.round(bgLum(r0)):0]);
+  let c=r0._fxc;if(!c||r0._fxk!==key||c.width!==W||c.height!==H){c=r0._fxc=r0._fxc||document.createElement('canvas');c.width=W;c.height=H;r0._fxk=key;
+    const g=c.getContext('2d'),prepCtx=q=>{q.setTransform(1,0,0,1,hw,hh);q.font=L.font;setLS(q,L.vert?'0px':st.ls*s/100+'px');q.textAlign=L.vert?'center':st.align;q.textBaseline='middle';q.lineJoin='round';q.direction=x.direction};
+    const sil=(q,col,wd)=>{q.fillStyle=q.strokeStyle=col;if(wd>0){q.lineWidth=wd;each(q,(t,a,b)=>q.strokeText(t,a,b))}each(q,(t,a,b)=>q.fillText(t,a,b))};
+    prepCtx(g);
+    if(shd||shb){const S=document.createElement('canvas');S.width=W;S.height=H;const q=S.getContext('2d');prepCtx(q);sil(q,st.shc,edge);const [ux,uy]=unitDir(st.shd);
+      g.save();g.setTransform(1,0,0,1,0,0);g.shadowColor=st.shc;g.shadowBlur=shb;g.shadowOffsetX=ux*shd+W;g.shadowOffsetY=uy*shd;g.drawImage(S,-W,0);g.restore()}  /* drop shadow */
+    if(dep){const [ux,uy]=unitDir(st.exd),side=rgbOf(sideOf(st,fill)),n=Math.max(1,Math.ceil(dep));
+      for(let i=n;i>=1;i--){g.save();g.translate(ux*dep*i/n,uy*dep*i/n);sil(g,mixHex(side,[0,0,0],.35*i/n),edge);g.restore()}}  /* 3D depth: stacked copies, darker towards the back */
+    if(ow2)sil(g,st.oc2,ol+th+ow2*2);  /* second outline, outside the first */
+    if(st.glow){g.save();g.shadowColor=g.fillStyle=g.strokeStyle=st.gcolor||(light?'rgba(10,10,10,.9)':'rgba(255,255,255,.95)');g.shadowBlur=st.glow*s/14;g.lineWidth=Math.max(1,s/12);
+      each(g,(t,a,b)=>{g.strokeText(t,a,b);g.fillText(t,a,b)});g.restore()}
+    if(ol){g.strokeStyle=st.ocolor||autoOutline(r0,light);g.lineWidth=ol+th;each(g,(t,a,b)=>g.strokeText(t,a,b))}
+    const ink=st.gon?textGrad(g,L,fill):fill;
+    if(th){g.strokeStyle=ink;g.lineWidth=th;each(g,(t,a,b)=>g.strokeText(t,a,b))}
+    g.fillStyle=ink;each(g,(t,a,b)=>g.fillText(t,a,b));
+    if(st.bev){const d=Math.max(1,s*st.bev/100),B=document.createElement('canvas');B.width=W;B.height=H;const q=B.getContext('2d');  /* bevel: a light rim top-left, a dark rim bottom-right, on the letters only */
+      for(const [col,sx,a] of [['#ffffff',1,.7],['#000000',-1,.45]]){q.globalCompositeOperation='source-over';q.setTransform(1,0,0,1,0,0);q.clearRect(0,0,W,H);prepCtx(q);q.fillStyle=col;each(q,(t,a2,b)=>q.fillText(t,a2,b));
+        q.globalCompositeOperation='destination-out';q.setTransform(1,0,0,1,hw+sx*d,hh+sx*d);each(q,(t,a2,b)=>q.fillText(t,a2,b));
+        g.save();g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='source-atop';g.globalAlpha=a;g.drawImage(B,0,0);g.restore()}}}
+  /* place it: rotation, then slant, then arc or perspective by drawing it in thin vertical strips */
+  const sk=Math.tan((st.skew||0)*Math.PI/180),bend=(st.arc||0)/100*s*1.5,pz=(st.persp||0)/100;
+  x.save();x.translate(L.cx,L.cy);if(st.angle)x.rotate(st.angle*Math.PI/180);if(sk)x.transform(1,0,-sk,1,0,0);
+  if(bend||pz){for(let i=0;i<W;i+=2){const u=(i+1)/W*2-1,k=1+pz*u,h=H*k,dy=-bend*(1-u*u);x.drawImage(c,i,0,2,H,i-hw,-h/2+dy,2.5,h)}}
+  else x.drawImage(c,-hw,-hh);
+  x.restore();
+  let ex=hw+Math.abs(sk)*hh*(1+Math.abs(pz)),ey=hh*(1+Math.abs(pz))+Math.abs(bend);if(st.angle)ex=ey=Math.hypot(ex,ey);
+  r0._ext={x0:Math.floor(L.cx-ex),y0:Math.floor(L.cy-ey),x1:Math.ceil(L.cx+ex),y1:Math.ceil(L.cy+ey)}}
 function drawText(r0,x){x.direction=$('tgt').value==='ar'?'rtl':'ltr';const L=layout(r0,x),{st,s,ol,th}=L,each=f=>L.items.forEach(it=>f(it.t,it.x,it.y));
   x.save();x.translate(L.cx,L.cy);if(st.angle)x.rotate(st.angle*Math.PI/180);x.font=L.font;setLS(x,L.vert?'0px':st.ls*s/100+'px');
   x.textAlign=L.vert?'center':st.align;x.textBaseline='middle';x.lineJoin='round';const fill=st.color||`rgb(${r0.ink})`,light=.299*r0.ink[0]+.587*r0.ink[1]+.114*r0.ink[2]>140;
+  if(st.ext||st.sh||st.bev||st.ow2||st.arc||st.skew||st.persp){x.restore();drawFx(r0,x,L,fill,light);setLS(x,'0px');return}
   if(st.glow){x.save();x.shadowColor=x.fillStyle=x.strokeStyle=st.gcolor||(light?'rgba(10,10,10,.9)':'rgba(255,255,255,.95)');x.shadowBlur=st.glow*s/14;x.lineWidth=Math.max(1,s/12);
     each((t,a,b)=>{x.strokeText(t,a,b);x.fillText(t,a,b)});x.restore()}  /* glow: a soft halo behind the letters */
   if(ol){x.strokeStyle=st.ocolor||autoOutline(r0,light);x.lineWidth=ol+th;each((t,a,b)=>x.strokeText(t,a,b))}
@@ -2546,8 +2588,10 @@ function drawText(r0,x){x.direction=$('tgt').value==='ar'?'rtl':'ltr';const L=la
 function paintLayer(x){const pc=(pages[cur]||{}).paint;
   regs.forEach(r=>{if(!r.free&&!r.healed&&r.patch&&r.txt.trim()&&!r.editing)x.drawImage(r.patch,r.px,r.py)});  /* a healed box needs no patch: its lettering is gone from the page */
   if(pc)x.drawImage(pc,0,0);if(strokeTmp){x.save();x.globalAlpha=drag&&drag.heal?.5:drag&&drag.img&&tool==='eraser'?1:pAlpha();x.drawImage(strokeTmp,0,0);x.restore()}
+  const near=r=>!paintClip||!r._ext||(r._ext.x1>paintClip.x0&&r._ext.x0<paintClip.x1&&r._ext.y1>paintClip.y0&&r._ext.y0<paintClip.y1);
   regs.forEach(r=>{if(r.stamp)drawStamp(r,x)});
-  regs.forEach(r=>{if(r.txt.trim()&&!r.editing&&(r.free||r.patch))drawText(r,x)})}
+  regs.forEach(r=>{if(r.txt.trim()&&!r.editing&&(r.free||r.patch)&&near(r))drawText(r,x)})}
+let paintClip=null;  /* set while a partial redraw draws its area */
 /* render: the boxes changed, so rebuild the layer on the next frame; paint: only the view or the outlines changed */
 function render(){layerDirty=true;layerParts.length=0;paint();scheduleSave()}
 function setView(orig){showOrig=orig;$('vT').setAttribute('aria-pressed',!orig);$('vO').setAttribute('aria-pressed',orig);paint()}
@@ -2573,6 +2617,20 @@ const stgHTML=r=>`
         <span>Glow</span><input type="range" data-k="glow" min="0" max="30" step="1" aria-label="Glow"><output></output>
         <span>Glow colour</span><span class="row2"><input type="color" data-k="gcolor" aria-label="Glow colour"><button type="button" data-reset="gcolor">Auto</button></span>
         <span>Gradient</span><span class="row2"><label><input type="checkbox" data-k="gon"> On</label><input type="color" data-k="grad" aria-label="Gradient second colour" title="The text fades from its colour into this one"><select data-k="gdir" aria-label="Gradient direction"><option value="v">Top to bottom</option><option value="h">Left to right</option><option value="d">Diagonal</option></select></span>
+        <span class="stgh">3D and effects</span>
+        <span>3D depth</span><input type="range" data-k="ext" min="0" max="40" step="1" aria-label="3D depth"><output></output>
+        <span>3D direction</span><select data-k="exd" aria-label="3D direction"><option value="dr">Down right</option><option value="d">Down</option><option value="dl">Down left</option><option value="r">Right</option><option value="l">Left</option><option value="ur">Up right</option><option value="u">Up</option><option value="ul">Up left</option></select><span></span>
+        <span>3D colour</span><span class="row2"><input type="color" data-k="exc" aria-label="3D side colour"><button type="button" data-reset="exc">Auto</button></span>
+        <span>Shadow</span><input type="range" data-k="sh" min="0" max="40" step="1" aria-label="Shadow distance"><output></output>
+        <span>Shadow blur</span><input type="range" data-k="shb" min="0" max="30" step="1" aria-label="Shadow blur"><output></output>
+        <span>Shadow direction</span><select data-k="shd" aria-label="Shadow direction"><option value="dr">Down right</option><option value="d">Down</option><option value="dl">Down left</option><option value="r">Right</option><option value="l">Left</option><option value="ur">Up right</option><option value="u">Up</option><option value="ul">Up left</option></select><span></span>
+        <span>Shadow colour</span><span class="row2"><input type="color" data-k="shc" aria-label="Shadow colour"></span>
+        <span>Bevel</span><input type="range" data-k="bev" min="0" max="12" step="1" aria-label="Bevel"><output></output>
+        <span>Second outline</span><input type="range" data-k="ow2" min="0" max="40" step="1" aria-label="Second outline width"><output></output>
+        <span>Second outline colour</span><span class="row2"><input type="color" data-k="oc2" aria-label="Second outline colour"></span>
+        <span>Arc</span><input type="range" data-k="arc" min="-60" max="60" step="1" aria-label="Arc"><output></output>
+        <span>Slant</span><input type="range" data-k="skew" min="-30" max="30" step="1" aria-label="Slant"><output></output>
+        <span>Perspective</span><input type="range" data-k="persp" min="-60" max="60" step="1" aria-label="Perspective"><output></output>
         <span>Align</span><span class="row2"><span class="seg" role="group" aria-label="Align"><button type="button" data-al="left">Left</button><button type="button" data-al="center">Centre</button><button type="button" data-al="right">Right</button></span></span>
         <span></span><span class="row2"><label><input type="checkbox" data-k="caps"> Capitals</label><label><input type="checkbox" data-k="fit"> Shrink to fit the bubble</label><label><input type="checkbox" data-k="vert"> Vertical (Japanese)</label></span>
         <span></span><span class="row2"><button type="button" data-pset title="Every box of this kind in the series uses this look, unless you change that box">Save as the series style</button><button type="button" data-reset="all">Reset text style</button></span>`;
@@ -2612,7 +2670,7 @@ function card(r,i,focus,Lc){const d=document.createElement('div');d.className='r
     const P=d.querySelector('details.styl'),setSt=(k,v)=>{checkpoint(r,'st-'+k);r.st={...(r.st||{}),[k]:v};syncStyle(r);syncBox(r);renderBox(r)};
     const wireSt=()=>{
     P.querySelectorAll('[data-k]').forEach(el=>{const k=el.dataset.k,ev=el.type==='range'||el.type==='color'?'input':'change';
-      el.addEventListener(ev,()=>setSt(k,el.type==='checkbox'?el.checked:el.type==='color'||k==='align'?el.value:Number(el.value)))});
+      el.addEventListener(ev,()=>setSt(k,el.type==='checkbox'?el.checked:el.type==='range'||k==='weight'?Number(el.value):el.value))});
     P.querySelectorAll('[data-al]').forEach(b=>b.onclick=()=>setSt('align',b.dataset.al));
     P.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{const k=b.dataset.reset;checkpoint(r,null,'Reset the text style');if(k==='all')r.st={};else r.st={...(r.st||{}),[k]:''};syncStyle(r);render()});
     P.querySelector('[data-ks]').onchange=e=>{checkpoint(r,null,'Kind: '+STYLE_NAME[e.target.value]);r.style=e.target.value;syncBox(r);syncStyle(r);render()};
