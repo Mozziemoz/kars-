@@ -908,7 +908,13 @@ textarea{resize:vertical;min-height:52px}
 .reg.sel{background:var(--sel)}
 .reg.sel::before{transform:none}            /* markSel toggles the class → the bar draws down; list() rebuilds start drawn (no flicker) */
 .reg.free .fld:has(.s),.reg.free .acts{display:none}       /* keep */
-.reg.stamp .fld,.reg.stamp .fontrow,.reg.stamp details.styl,.reg.stamp select.stage{display:none}
+.reg.stamp .fld,.reg.stamp .fontrow,.reg.stamp details.styl,.reg.stamp select.stage,.reg.stamp .cs{display:none}
+.fontrow select[data-f]{min-width:130px}
+.fontrow .cs{height:28px;padding:0 9px;gap:6px;font-size:12px}.fontrow .cs svg.i{width:14px;height:14px}
+.fontrow .cs.on{color:var(--accent-text);background:var(--accent-soft);border-color:color-mix(in oklab,var(--accent) 40%,transparent)}
+#stage.painting #cv{cursor:copy!important}
+#stylebar{position:absolute;left:0;right:0;bottom:72px;z-index:5;width:max-content;margin:0 auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 32px);padding:6px 6px 6px 12px;background:var(--panel);border:1px solid var(--accent);border-radius:10px;box-shadow:var(--shadow);font-size:12.5px;color:var(--ink)}
+#stylebar b{font-weight:600}#stylebar button{height:30px;font-size:12px;padding:0 10px}
 .prow .sthumb{grid-row:1/3;width:44px;height:30px;object-fit:contain;background:repeating-conic-gradient(var(--sunk) 0 25%,var(--raise) 0 50%) 0 0/10px 10px;border-radius:4px}
 .prow:has(.sthumb){grid-template-columns:auto 1fr auto}.prow:has(.sthumb) b,.prow:has(.sthumb) small{grid-column:2}.prow:has(.sthumb) .grp{grid-column:3}
 .reg.folded>:not(.top){display:none}                       /* keep: display:none is asserted by tests */
@@ -1441,6 +1447,7 @@ const IC={folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-
   newdoc:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/>',again:'<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>'};
 IC.cursor='<path d="M5 3l14 8-6 2-2 6z"/>';IC.brush='<path d="M9.5 14.5 18 6a2 2 0 0 1 3 3l-8.5 8.5"/><path d="M9.5 14.5c-2 0-3.5 1.5-3.5 3.5 0 1.5-1 2-2 2 1 1 2.5 1 4 1 2.5 0 4-1.6 4-4z"/>';IC.eraser='<path d="M16 4l5 5-10 10H6l-3-3z"/><path d="M11 19h10M9 9l6 6"/>';IC.pick='<path d="m14 7 3 3M4 20l1-4 9.5-9.5a2.1 2.1 0 0 1 3 3L8 19z"/><path d="M16 4.5a2.1 2.1 0 0 1 3 0l.5.5a2.1 2.1 0 0 1 0 3"/>';IC.textbox='<path d="M4 7V5h16v2M12 5v14M9 19h6"/>';
 IC.palette='<path d="M12 3a9 9 0 0 0 0 18c1.4 0 2-1 2-2 0-.6-.3-1-.6-1.4-.3-.4-.6-.8-.6-1.4 0-1 .9-1.7 2-1.7H17a4 4 0 0 0 4-4c0-4.1-4-7.5-9-7.5z"/><circle cx="7.5" cy="11.5" r="1.2" fill="currentColor"/><circle cx="10" cy="7.5" r="1.2" fill="currentColor"/><circle cx="14.5" cy="7.5" r="1.2" fill="currentColor"/><circle cx="17" cy="11" r="1.2" fill="currentColor"/>';IC.edit='<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/>';IC.note='<path d="M5 4h14v11l-5 5H5z"/><path d="M14 20v-5h5M8.5 9h7M8.5 12.5h4"/>';IC.book='<path d="M3 5.5c2.7-1.2 5.7-1 9 .8 3.3-1.8 6.3-2 9-.8V19c-2.7-1.2-5.7-1-9 .8-3.3-1.8-6.3-2-9-.8z"/><path d="M12 6.3v13.5"/>';IC.check='<path d="m4.5 12.5 5 5L20 7"/>';IC.find='<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>';IC.heal='<path d="m13.8 3.7 6.5 6.5a2.5 2.5 0 0 1 0 3.5l-6.6 6.6a2.5 2.5 0 0 1-3.5 0l-6.5-6.5a2.5 2.5 0 0 1 0-3.5l6.6-6.6a2.5 2.5 0 0 1 3.5 0z"/><path d="M10.2 10.2h.01M13.8 10.2h.01M10.2 13.8h.01M13.8 13.8h.01M12 12h.01"/>';IC.chat='<path d="M4 5.5h16v10.5H10l-5 4v-4H4z"/><path d="M8 9.5h8M8 12.5h5"/>';IC.team='<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c.6-3 2.8-4.8 5.5-4.8s4.9 1.8 5.5 4.8"/><circle cx="17" cy="9.5" r="2.3"/><path d="M15.6 14.4c2.5-.4 4.5 1.2 5 4.1"/>';IC.chev='<path d="m6 9 6 6 6-6"/>';IC.library='<path d="M4 4h4v16H4zM10 4h4v16h-4zM15.6 5.3l3.4-.9 3.5 15.3-3.4.9z"/>';IC.compare='<rect x="3" y="4" width="8" height="16" rx="1.5"/><rect x="13" y="4" width="8" height="16" rx="1.5"/>';IC.history='<path d="M3.5 12a8.5 8.5 0 1 0 2.5-6L3.5 8.5"/><path d="M3.5 4v4.5H8M12 7.5V12l3 2"/>';IC.unlink='<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.2 8.2 20 20M8.2 15.8 20 4"/>';IC.hide='<path d="M5 12h14"/><path d="m8 8-3 4 3 4"/>';
+IC.roller='<rect x="4" y="3" width="14" height="6" rx="1.5"/><path d="M18 6h2v5h-8v3"/><rect x="10" y="14" width="4" height="7" rx="1"/>';  /* paste a copied text style */
 const ic=n=>`<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${IC[n]}</svg>`;
 $$('[data-ic]').forEach(el=>el.insertAdjacentHTML('afterbegin',ic(el.dataset.ic)));
 const cv=$('cv'),src=document.createElement('canvas'),sctx=src.getContext('2d',{willReadFrequently:true});  /* src: CPU copy of the page, used for analysis and export */
@@ -1543,7 +1550,8 @@ Object.values(F).forEach(({f,w})=>document.fonts.load(`${w} 20px ${f}`).then(()=
 
 /* ---------- history: one stack per box, plus one per page for adding/deleting boxes ---------- */
 let G={u:[],r:[]};  /* the history of the current page: every edit in the order it happened (each page keeps its own) */
-const bs=r=>JSON.stringify({src:r.src,txt:r.txt,font:r.font,style:r.style,match:r.match,italic:r.italic,outline:r.outline,st:r.st||{},x:r.x,y:r.y,w:r.w,h:r.h,note:r.note||'',stage:r.stage||'',healed:!!r.healed});
+/* a box's undoable state; true/false and null are written out, so undo can turn an option back off that was never set */
+const bs=r=>JSON.stringify({src:r.src,txt:r.txt,font:r.font,style:r.style,match:r.match||null,italic:!!r.italic,outline:!!r.outline,st:r.st||{},size:r.size??null,...(r.ink?{ink:r.ink}:{}),x:r.x,y:r.y,w:r.w,h:r.h,note:r.note||'',stage:r.stage||'',healed:!!r.healed});
 const geo=r=>[r.x,r.y,r.w,r.h].join();
 function logG(e,pg){const g=pg?pg.G:G;e.at=Date.now();g.u.push(e);if(g.u.length>300)g.u.shift();g.r=[];histUI()}
 const BOXLAB={n:'Edited the note',s:'Edited the original',t:'Edited the translation',auto:'Translated',st:'Changed the text style'};
@@ -2076,6 +2084,7 @@ cv.onpointerdown=e=>{if(!loaded)return;pageFocus=false;cv.setPointerCapture(e.po
   if(tool==='brush'||tool==='eraser'||tool==='heal'||tool==='pick')return paintStart(e,p);
   if(tool==='text'){drag={mode:'new',free:true,x0:p.x,y0:p.y,x1:p.x,y1:p.y};return paint()}
   const h=e.shiftKey?null:hit(p);
+  if(h&&styleClip&&!h.r.stamp){sel=regs.indexOf(h.r);markSel();if(h.r.id!==styleClip.from)pasteStyle([h.r]);return paint()}
   if(h){sel=regs.indexOf(h.r);markSel();drag={...h,p0:p,g:{x:h.r.x,y:h.r.y,w:h.r.w,h:h.r.h},before:bs(h.r)}}
   else drag={mode:'new',x0:p.x,y0:p.y,x1:p.x,y1:p.y};paint()};
 cv.onpointermove=e=>{if(!loaded)return;if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,local(e));
@@ -2510,7 +2519,7 @@ function list(focus){const Lc=$('list');Lc.innerHTML='';pageBar();$('bcount').hi
       <label class="fld nfld"${(r.note||'').trim()?'':' hidden'}><span class="cap">Note</span><textarea class="n" dir="auto" data-n="${r.id}" rows="1" placeholder="For the proofreader or team. Not printed."></textarea></label>
       <div class="thr" hidden></div>
       <div class="fontrow"><span class="sw" style="background:rgb(${r.ink})" title="Ink colour"></span><select data-f="${r.id}" aria-label="Font">${['auto',...Object.keys(F)].map(k=>`<option value="${k}">${k==='auto'?'Auto':(F[k].custom?'★ ':'')+F[k].n+({ar:' (Arabic)',ko:' (Korean)',ja:' (Japanese)'}[F[k].s]||'')}</option>`).join('')}</select>
-        <label><input type="checkbox" data-i="${r.id}"> Italic</label><label><input type="checkbox" data-o="${r.id}"> Outline</label></div>
+        <label><input type="checkbox" data-i="${r.id}"> Italic</label><label><input type="checkbox" data-o="${r.id}"> Outline</label><button type="button" class="cs${styleClip&&styleClip.from===r.id?' on':''}" title="${styleClip&&styleClip.from!==r.id?'Paste the copied text style on this box':'Copy this box’s font and text style, then click other boxes to paste it'}">${ic(styleClip&&styleClip.from!==r.id?'roller':'brush')}${styleClip&&styleClip.from!==r.id?'Paste style':styleClip?'Copied':'Copy style'}</button></div>
       <details class="styl" data-styl="${r.id}"${r._open?' open':''}><summary>Text style<i class="chev" aria-hidden="true"></i></summary><div class="stg">
         <span>Kind</span><select data-ks="${r.id}" aria-label="Kind of text">${STYLES.map(k=>`<option value="${k}">${STYLE_NAME[k]}</option>`).join('')}</select><span></span>
         <span>Size</span><input type="range" data-k="size" min="40" max="250" step="5" aria-label="Text size"><output></output>
@@ -2547,6 +2556,7 @@ function list(focus){const Lc=$('list');Lc.innerHTML='';pageBar();$('bcount').hi
     d.querySelector('.rr').onclick=()=>{if(!r.src.trim())return setStatus(r,'Type or fix the Original text first, or use Read & translate.');clearTimeout(r._ft);translateSrc(r)};
     d.querySelector('.rd').onclick=()=>pipeline(r,{go:true,redetect:true});
     d.querySelector('.del').onclick=()=>delBox(r);
+    d.querySelector('.cs').onclick=()=>styleClip&&styleClip.from!==r.id?pasteStyle([r]):copyStyle(r);
     d.querySelector('.stage').onchange=e=>{const v=e.target.value;checkpoint(r,null,'Status: '+STAGE_NAME[v]);r.stage=v;e.target.dataset.v=v;pageBar();scheduleSave();
       const s=serOf(curS);if(isTeam(s)&&['pr','ts','ok'].includes(v))teamLog(s,`marked ${chLabel(chOf(s,curC))}, page ${cur+1}, box ${regs.indexOf(r)+1} as ${STAGE_NAME[v].toLowerCase()}`)};
     const nf=d.querySelector('.nfld'),n=d.querySelector('.n');d.querySelector('.nb').onclick=()=>{nf.hidden=!nf.hidden;if(!nf.hidden)n.focus()};
@@ -2680,6 +2690,25 @@ if(!initGL())$('nogl').hidden=false;
 const STAGES=[['todo','To do'],['tl','Translated'],['pr','Proofread'],['ts','Typeset'],['ok','Approved']],STAGE_NAME=Object.fromEntries(STAGES);
 const stageOf=r=>r.stage||(r.txt.trim()?'tl':'todo');
 /* one undo step for a change to many boxes (grouped per page, because each page keeps its own history) */
+/* ---------- copy a box's text style and paste it on others: the font, its look (Text style) and the ink colour.
+   While a style is copied, clicking a box on the page or its paint button in the list pastes it; Esc or Done stops ---------- */
+let styleClip=null;
+function copyStyle(r){styleClip={from:r.id,font:fontKey(r),italic:!!r.italic,outline:!!r.outline,st:{...stOf(r)},ink:r.ink?[...r.ink]:null,size:r.size};styleBar();list();
+  toast(`Copied the text style of box ${regs.indexOf(r)+1}. Click other boxes on the page to paste it.`,2500)}
+function pasteStyle(boxes){const c=styleClip;if(!c)return 0;boxes=boxes.filter(b=>!b.stamp&&b.id!==c.from);
+  const n=groupEdit(boxes,'Pasted a text style',()=>boxes.forEach(b=>{b.font=c.font;b.italic=c.italic;b.outline=c.outline;b.st={...c.st};if(c.ink)b.ink=[...c.ink];if(c.size)b.size=c.size}));
+  boxes.forEach(syncStyle);toast(n?`Pasted the style on ${n} box${n>1?'es':''}.`:'Those boxes already have this style.',1800);return n}
+function stopStyle(){if(!styleClip)return;styleClip=null;styleBar();list()}
+function styleBar(){let b=$('stylebar');$('stage').classList.toggle('painting',!!styleClip);
+  if(!styleClip){if(b)b.remove();return}
+  if(!b){b=document.createElement('div');b.id='stylebar';b.setAttribute('role','status');$('stage').appendChild(b)}
+  const from=pages.flatMap(p=>p.regs).find(q=>q.id===styleClip.from),no=regs.indexOf(from)+1;
+  b.innerHTML=`<span>${ic('brush')} <b>Style${no?` of box ${no}`:''} copied.</b> Click boxes to paste it.</span><button data-sp="page">Paste on this page</button><button data-sp="ch">Paste in chapter</button><button class="primary" data-sp="done">Done</button>`;
+  b.querySelector('[data-sp=page]').onclick=()=>pasteStyle(regs.filter(q=>!q.free||q.txt.trim()));
+  b.querySelector('[data-sp=ch]').onclick=async()=>{const all=pages.flatMap(p=>p.regs).filter(q=>!q.stamp&&q.id!==styleClip.from);
+    if(all.length&&await ask(`Paste this style on all ${all.length} boxes in the chapter?`,'Paste in chapter'))pasteStyle(all)};
+  b.querySelector('[data-sp=done]').onclick=stopStyle}
+addEventListener('keydown',e=>{if(e.key==='Escape'&&styleClip&&!e.defaultPrevented){stopStyle()}});
 function groupEdit(boxes,label,fn){const items=boxes.map(b=>({box:b,before:bs(b)}));fn();const byPage=new Map();let n=0;
   for(const it of items){if(bs(it.box)===it.before)continue;n++;const pg=pageOf(it.box)||null;if(!byPage.has(pg))byPage.set(pg,[]);byPage.get(pg).push(it)}
   byPage.forEach((its,pg)=>logG({t:'boxes',items:its,label:label+(its.length>1?` · ${its.length} boxes`:'')},pg||undefined));
