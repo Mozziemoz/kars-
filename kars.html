@@ -524,9 +524,6 @@ kbd{display:inline-block;min-width:20px;margin:0 1px;text-align:center;font:500 
   #thumbs{width:90px;padding:10px 8px}aside{width:330px}
   #tools{row-gap:6px}
   #tools .vr,#tools>.spacer{display:none}
-  #detect{margin-left:auto}
-  #tools>.brk{display:block;flex-basis:100%;height:0}
-  #trpage,#trall{flex:1}
   .fontrow select{flex:1 1 calc(100% - 34px)}
   #toast{left:106px}
 }
@@ -1226,6 +1223,20 @@ aside{position:relative}
 .dres .sense{display:grid;gap:5px;padding:8px 10px;border:1px solid var(--line2);background:var(--field)}.dres .eqs{display:flex;flex-wrap:wrap;gap:8px}
 .dres .eq{display:inline-flex;gap:4px;align-items:center}.dres .eq b{font-size:15px}.dres .eq button{padding:2px 6px;font-size:11px}.dres .ex{font-size:12px;color:var(--ink2)}
 #dictbtn{font-size:0;gap:0;padding-inline:9px}#dictbtn svg{margin:0}
+
+/* ==== bubble markers beside the panel, bubble type rows, paste dialog ==== */
+.marks{position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:3;display:flex;flex-direction:column;gap:4px;padding:5px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 20px -8px rgba(0,0,0,.35);max-height:calc(100% - 24px);overflow:auto}
+.marks[hidden]{display:none}
+.trbar{display:flex;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}.trbar button{flex:1}
+.marks button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:62px;height:auto;min-height:44px;padding:5px 4px;border:1px solid transparent;border-radius:7px;background:transparent;box-shadow:none;color:var(--ink);cursor:pointer}
+.marks button:hover{background:var(--hover,rgba(127,127,127,.12))}
+.marks button[aria-pressed=true]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.marks b{font:700 15px/1 var(--mono);letter-spacing:.02em}
+.marks small{font-size:10px;line-height:1.1;color:var(--mute);text-align:center}
+.prow.trow{grid-template-columns:52px 1fr auto;gap:5px 8px}
+.prow.trow .mk{grid-row:1/3;width:52px;height:34px;box-sizing:border-box;text-align:center;font:700 14px/1 var(--mono);padding:0 4px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+.prow.trow b{grid-column:2}.prow.trow select{grid-column:2;height:28px;font-size:12px;min-width:0;width:100%}.prow.trow small{grid-column:2}.prow.trow .grp{grid-column:3;grid-row:1/4}
+.pastedlg{width:min(560px,calc(100vw - 32px))}.pastedlg textarea{width:100%;box-sizing:border-box;font-size:14px;min-height:220px}
 </style>
 </head>
 <body>
@@ -1253,6 +1264,7 @@ aside{position:relative}
         <button id="saveproj" data-ic="save">Save chapter file (.kars)</button>
         <button id="script" data-ic="doc">Export script (.txt)</button>
         <button id="scriptdocx" data-ic="doc">Export script for Word (.docx)</button>
+        <button id="scriptmk" data-ic="doc">Export script with markers (.txt)</button>
         <button id="scriptimp" data-ic="doc">Import a script (.txt, .docx)</button>
         <hr>
         <button id="frbtn" data-ic="find">Find and replace (Ctrl+H)</button>
@@ -1271,10 +1283,6 @@ aside{position:relative}
     <div id="tools" hidden>
       <div class="grp pager join" role="group" aria-label="Pages"><button id="prev" class="icon ghost" data-ic="left" aria-label="Previous page"></button><span id="pageno"></span><button id="next" class="icon ghost" data-ic="right" aria-label="Next page"></button></div>
       <span class="vr"></span>
-      <button id="detect" class="ghost" data-ic="scan" title="Add a box for every speech bubble on this page">Find bubbles</button>
-      <span class="brk" aria-hidden="true"></span>
-      <button id="trpage" class="primary" data-ic="translate"><span>Translate page</span></button>
-      <button id="trall"><span>Translate chapter</span></button>
       <button id="cmts" class="ghost" data-ic="chat" title="Open comments from your team in this chapter" hidden>Comments <span id="cmtsn" class="count" hidden></span></button>
       <button id="dictbtn" class="ghost" data-ic="book" title="Dictionary and My words: look up a word or the selected text (Alt+D)">Dictionary</button><button id="qa" class="ghost" data-ic="check" title="Find problems before you export: missing translations, text that does not fit, glossary mistakes, typos">Check</button>
       <span class="spacer"></span>
@@ -1286,19 +1294,22 @@ aside{position:relative}
         <h2 id="emptyh">Drop a chapter here</h2>
         <p>Page images (PNG, JPG, WebP, PSD, TIFF, PDF, HEIC, SVG…), a ZIP/CBZ, or a .kars chapter file. You can also paste an image.</p>
         <div class="grp"><label class="btn primary" data-ic="folder">Open files<input class="fileIn" type="file" accept="image/*,.zip,.cbz,.kars,.karslib,.psd,.psb,.tif,.tiff,.pdf,.heic,.heif,.svg" multiple></label><button id="emptylib" data-ic="library">Library</button></div>
-        <ol><li><b>Find bubbles</b>, or drag over any text to add a box.</li><li><b>Translate</b> the page or the whole chapter.</li><li>Check each box, then <b>export</b> lossless PNGs.</li></ol>
+        <ol><li><b>Find bubbles</b> (paint tools), or drag over any text to add a box.</li><li><b>Translate</b> the page or the whole chapter.</li><li>Check each box, then <b>export</b> lossless PNGs.</li></ol>
         <p class="small saved-note">Your work is saved in this browser automatically.</p>
         <p id="nogl" class="small" hidden>This browser can't run WebGL 2, which KARS uses to show pages. Turn on hardware acceleration in the browser settings, or try another browser.</p>
       </div>
       <canvas id="cv"></canvas>
+      <div id="marks" class="marks" role="toolbar" aria-label="Bubble markers" hidden></div>
       <div id="paintbar" class="paintbar" data-win="tools" role="toolbar" aria-label="Paint tools" hidden>
         <span class="pgrip" title="Drag to move the tools" aria-hidden="true"></span>
         <button data-tool="select" aria-pressed="true" title="Select and edit boxes (A)" aria-label="Select">S</button>
         <button data-tool="brush" aria-pressed="false" title="Brush (B)" aria-label="Brush">B</button>
         <button data-tool="eraser" aria-pressed="false" title="Eraser: removes your paint (E)" aria-label="Eraser">E</button>
         <button data-tool="heal" aria-pressed="false" title="Heal: paint over text drawn on the art. When you let go, the art behind it is rebuilt from its surroundings (J)" aria-label="Heal">H</button>
+        <button data-tool="tahrir" aria-pressed="false" class="ptahrir" title="Tahrir (تحرير): paint over text drawn on the art. AI removes it, rebuilds the art behind it, and places the translation in a matching font and look (W)" aria-label="Tahrir: AI text removal">W</button>
         <button data-tool="pick" aria-pressed="false" title="Pick a colour from the page (I)" aria-label="Colour picker">I</button>
         <button data-tool="text" aria-pressed="false" title="Text box: drag on the page to place your own text (T)" aria-label="Text box">T</button>
+        <button id="detect" class="pdetect" title="Find bubbles: the AI adds a box for every speech bubble on this page" aria-label="Find bubbles"></button>
         <button id="pshape" class="pshape" title="Box shape: click to switch between rectangle, rounded, oval and diamond. Applies to the selected box and to new boxes." aria-label="Box shape"></button>
         <span class="psep"></span>
         <span class="ptarget" role="group" aria-label="Paint on">
@@ -1334,6 +1345,7 @@ aside{position:relative}
       <div class="langbar"><label class="field"><span>Chapter language</span><select id="lang" aria-label="Chapter language"><option value="auto">Auto-detect</option><option value="kor">Korean</option><option value="jpn">Japanese</option><option value="jpn_vert">Japanese (vertical text)</option><option value="eng">English</option><option value="ara">Arabic</option></select></label>
         <span class="to" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-5-5 5 5-5 5"/></svg></span>
         <label class="field"><span>Translate into</span><select id="tgt" aria-label="Translate into"><option value="en">English</option><option value="ar">Arabic</option><option value="ko">Korean</option><option value="ja">Japanese</option></select></label></div>
+      <div class="trbar"><button id="trpage" class="primary" data-ic="translate"><span>Translate page</span></button><button id="trall"><span>Translate chapter</span></button></div>
       <div id="list"></div></div>
     <div class="pane" id="p-settings" role="tabpanel" hidden>
       <h3 class="sec">Translation</h3>
@@ -1346,18 +1358,27 @@ aside{position:relative}
       <div id="omnirow" hidden><label class="field"><span>OmniRoute address</span><input id="omniurl" type="url" placeholder="http://localhost:20128/v1" autocomplete="off"></label>
         <label class="field"><span>Model</span><input id="omnimodel" type="text" placeholder="auto" autocomplete="off" spellcheck="false"></label></div>
       <label class="field" id="regrow" hidden><span>Azure region</span><input id="region" type="url" placeholder="westeurope" autocomplete="off"></label>
+      <h3 class="sec">Tahrir (تحرير): AI text removal</h3>
+      <label class="field"><span>Clean the art with</span><select id="trengine"><option value="gemini">Gemini image editing (Google key, best)</option><option value="iopaint">IOPaint on this PC (free)</option><option value="heal">KARS Heal (offline, simple backgrounds)</option></select></label>
+      <div id="gemrow"><label class="field"><span>Gemini API key</span><input id="gemkey" type="password" autocomplete="off" placeholder="From aistudio.google.com/apikey"></label>
+        <label class="field"><span>Gemini model</span><input id="gemmodel" type="text" autocomplete="off" spellcheck="false" placeholder="gemini-2.5-flash-image"></label></div>
+      <label class="field" id="iorow"><span>IOPaint address</span><input id="iourl" type="url" autocomplete="off" placeholder="http://127.0.0.1:8080"></label>
+      <p class="note" id="trnote"></p>
+      <div class="checks"><label class="check"><input id="trplace" type="checkbox" checked><span>Then place the translation in a font and look that match the original (uses the translation engine above)</span></label></div>
       <h3 class="sec">This panel</h3>
       <label class="field"><span>Text size</span><span class="rowx"><input id="uiz" type="range" min="85" max="140" step="5" value="100" aria-label="Text size in this panel"><span id="uizV" class="small mute">100%</span></span></label>
       <p class="note">Drag the panel's left edge to make it wider or narrower. Double-click the edge to reset it.</p>
       <h3 class="sec">Pages and lettering</h3>
       <label class="field"><span>Reading order</span><select id="order"><option value="auto">Auto (from the language)</option><option value="rtl">Right to left (manga)</option><option value="ltr">Left to right (manhwa, manhua)</option></select></label>
-      <label class="field"><span>Export as</span><select id="xfmt"><option value="png">PNG: one flat image per page</option><option value="psd">PSD with layers, for Photoshop</option></select></label>
+      <label class="field"><span>Export as</span><select id="xfmt"><option value="png">PNG: lossless, one image per page</option><option value="jpg">JPG: smaller files</option><option value="webp">WebP: smallest files (pages over 15,000 px tall are cut)</option><option value="psd">PSD with layers, for Photoshop</option></select></label>
+      <label class="field" id="xqrow"><span>JPG and WebP quality</span><span class="rowx"><input id="xq" type="range" min="60" max="100" step="1" value="92" aria-label="JPG and WebP quality"><span id="xqV" class="small mute">92</span></span></label>
       <label class="field"><span>Long manhwa strips</span><select id="split"><option value="off">Keep each image whole (tall pages are read in parts)</option><option value="big">Cut into large pieces</option><option value="page">Cut into page-size pieces</option></select></label>
       <label class="field"><span>Text size</span><span class="rowx"><input id="size" type="range" min="50" max="200" value="100"><span id="sizeV" class="small mute">100%</span></span></label>
       <h3 class="sec">While you work</h3>
       <div class="checks">
       <label class="check"><input id="auto" type="checkbox" checked><span>Translate a box as soon as I draw it</span></label>
       <label class="check"><input id="follow" type="checkbox" checked><span>Translate again when I edit the original text</span></label>
+      <label class="check"><input id="mkshow" type="checkbox" checked><span>Show the bubble markers beside the panel</span></label>
       <label class="check"><input id="sfx" type="checkbox"><span>Also translate sound effects drawn in the art (Translate page)</span></label>      </div>
     </div>
     <div class="pane" id="p-fonts" role="tabpanel" hidden>
@@ -1385,9 +1406,10 @@ aside{position:relative}
       <p class="note">Claude follows the glossary in every request, the chapter check flags lines that break it, and Apply replaces whole words in this page's translations. Tip: select a name in a box and press the book button to add it.</p>
       <h3 class="sec">Translation notes</h3>
       <label class="field"><span>How this series should read. Claude follows these.</span><textarea id="snotes" rows="5" placeholder="Keep honorifics (-nim, -ssi, -senpai).&#10;Jin-woo speaks short and blunt.&#10;Use “Hunter Association”, never “Hunters Guild”."></textarea></label>
-      <h3 class="sec">Text styles</h3>
-      <p class="note" style="margin-top:0">One look per kind of text. Set a box the way you want, then press <b>Save as the series style</b> in its Text style panel. Every box of that kind without its own changes follows it.</p>
+      <h3 class="sec">Bubble types</h3>
+      <p class="note" style="margin-top:0">One font and look per kind of bubble, and the marker your translators put on its lines (a pair like <b>()</b> wraps the line, anything else like <b>OT:</b> goes before it). Pick a font here, or set a box the way you want and press <b>Save as the series style</b> in its Text style panel.</p>
       <div id="presets" class="presets"></div>
+      <div class="grp wrap" style="margin-top:8px"><label class="btn" data-ic="plus">Upload a font file<input id="fontfile2" type="file" accept=".ttf,.otf,.woff,.woff2" hidden></label><button id="pastescript" data-ic="doc">Paste a script with markers</button></div>
       <h3 class="sec">Stamps</h3>
       <p class="note" style="margin-top:0">Images this series uses again and again, like your translated title logo. Add one once, then place it on any page and move or resize it like a box. It is included when you export.</p>
       <div id="stamps" class="presets"></div>
@@ -1395,6 +1417,13 @@ aside{position:relative}
     </div>
   </aside>
 </main>
+<dialog id="pastedlg" class="pastedlg" aria-labelledby="psdh">
+  <h3 id="psdh">Paste a script with markers</h3>
+  <p class="note" style="margin-top:0">One line per bubble, in reading order. The marker on each line sets the bubble type. A line like <b>Page 2</b> or <b>صفحة 2</b> moves to that page; without page lines, the lines fill this page's boxes from the selected box on.</p>
+  <textarea id="pstxt" dir="auto" rows="12" placeholder="&quot;Where are you going?&quot;&#10;(I can't let him see me.)&#10;OT: Three days later&#10;:: STOP!"></textarea>
+  <p id="psinfo" class="small mute"></p>
+  <div class="grp" style="justify-content:flex-end"><button id="pscancel" class="ghost">Cancel</button><button id="psok" class="primary">Fill the boxes</button></div>
+</dialog>
 <section id="lib" class="screen" aria-label="Library" hidden><div id="libbody" class="libwrap"></div></section>
 <section id="review" class="screen" aria-label="Side by side" hidden>
   <div class="revbar"><button id="revback" data-ic="left">Back to editing</button><b id="revtitle"></b><span class="spacer"></span><small id="revprog" class="mute"></small><button id="revexport" data-ic="download">Export side by side</button></div>
@@ -1484,8 +1513,9 @@ const F={
   notojp:{n:'Noto Sans JP',f:"'Noto Sans JP','Yu Gothic',sans-serif",w:700,s:'ja',c:'narration',d:'clean Japanese text for narration'}};
 const MAP={lat:{normal:'comic',thought:'comic',shout:'bangers',handwritten:'hand',narration:'serif',sfx:'marker'},ar:{normal:'cairo',thought:'cairo',shout:'lalezar',handwritten:'ruqaa',narration:'naskh',sfx:'lalezar'},
   ko:{normal:'notokr',thought:'notokr',shout:'blackhan',handwritten:'gaegu',narration:'notokr',sfx:'blackhan'},ja:{normal:'zenmaru',thought:'zenmaru',shout:'dela',handwritten:'yomogi',narration:'notojp',sfx:'dela'}};
+for(const m of Object.values(MAP)){m.box??=m.normal;m.system??=m.narration;m.side??=m.normal}  /* the newer kinds start from the closest older one */
 const script=()=>({ar:'ar',ko:'ko',ja:'ja'})[$('tgt').value]||'lat';
-const L2={jpn:'ja',jpn_vert:'ja',kor:'ko',chi_sim:'zh-CN',eng:'en',ara:'ar'},TL={en:'English',ar:'Arabic',ko:'Korean',ja:'Japanese'},STYLES=['normal','thought','shout','handwritten','narration','sfx'];
+const L2={jpn:'ja',jpn_vert:'ja',kor:'ko',chi_sim:'zh-CN',eng:'en',ara:'ar'},TL={en:'English',ar:'Arabic',ko:'Korean',ja:'Japanese'},STYLES=['normal','thought','box','system','narration','side','shout','handwritten','sfx'];
 /* Auto uses the font Claude matched to the original lettering, else the measured style; if that font lacks the target script, the same kind of font in that script */
 function autoKey(r){const sc=script();let k=r.match&&F[r.match]?r.match:MAP[sc][r.style||'normal'];return F[k].s===sc?k:MAP[sc][F[k].c]}
 const fontKey=r=>{if(r.font!=='auto'&&F[r.font])return r.font;const p=preset(r);return p&&p.font&&F[p.font]?p.font:autoKey(r)};
@@ -1505,7 +1535,7 @@ function ask(msg,yes='Continue'){return new Promise(ok=>{const d=$('askd');$('as
 function toast(msg,ms=3500){const t=$('toast');t.textContent=msg;t.style.setProperty('--ms',ms?ms+'ms':'0s');t.dataset.k=t.dataset.k==='1'?'0':'1';t.classList.add('on');clearTimeout(toast.h);if(ms)toast.h=setTimeout(()=>t.classList.remove('on'),ms)}
 
 /* ---------- settings and theme (kept in this browser) ---------- */
-const SET=['lang','tgt','engine','order','auto','split','size','sfx','follow','uiz','dicteng','dfrom','dto','xfmt'];
+const SET=['lang','tgt','engine','order','auto','split','size','sfx','follow','uiz','dicteng','dfrom','dto','xfmt','mkshow','xq','trengine','trplace'];
 let keys={};try{keys=JSON.parse(localStorage.getItem('kars_keys')||'{}');if(!keys.claude&&localStorage.getItem('kars_key'))keys.claude=localStorage.getItem('kars_key')}catch(e){}
 $('engine').value=keys.claude?'claude':'gfree';
 /* opened through the KARS server on this PC: use Claude through your Claude Code sign-in, no key needed */
@@ -1611,7 +1641,7 @@ addEventListener('keydown',e=>{const k=e.key.toLowerCase(),a=document.activeElem
   else if(k==='+'||k==='='){zoomBy(1.25)}else if(k==='-'){zoomBy(.8)}else if(k==='0'){fit()}else if(k==='v'&&loaded)setView(!showOrig)
   else if(loaded&&!e.altKey&&k==='h')showTools(paintHidden())
   else if(loaded&&!e.altKey&&k==='l')setTarget(paintOnImage?'layer':'image')
-  else if(loaded&&!e.altKey&&({a:'select',b:'brush',e:'eraser',j:'heal',i:'pick',t:'text'})[k])setTool(({a:'select',b:'brush',e:'eraser',j:'heal',i:'pick',t:'text'})[k])
+  else if(loaded&&!e.altKey&&({a:'select',b:'brush',e:'eraser',j:'heal',w:'tahrir',i:'pick',t:'text'})[k])setTool(({a:'select',b:'brush',e:'eraser',j:'heal',w:'tahrir',i:'pick',t:'text'})[k])
   else if(k===' '&&loaded){e.preventDefault();if(!spaceDown){spaceDown=true;if(!drag)cv.style.cursor='grab'}}});
 addEventListener('keyup',e=>{if(e.key===' '){spaceDown=false;if(!drag)cv.style.cursor='crosshair'}});
 $('undo').onclick=undo;$('redo').onclick=redo;
@@ -1719,7 +1749,7 @@ async function show(i){if(i<0||i>=pages.length)return;const tk=++showTok,pg=page
 function dropPage(i){const pg=pages[i];if(pg.url)URL.revokeObjectURL(pg.url);DB.del('page:'+pg.id).catch(()=>{});DB.del('paint:'+pg.id).catch(()=>{});dropThumb(pg);pages.splice(i,1);
   if(!pages.length)return reset();if(i===cur){cur=-1;show(Math.min(i,pages.length-1))}else{if(i<cur)cur--;pageBar()}}
 function reset(){cur=-1;regs=[];G={u:[],r:[]};histUI();sel=-1;loaded=false;cv.style.display='none';dropTex();$('empty').hidden=false;uiState();list()}
-function uiState(){winUI();
+function uiState(){winUI();marksUI();
   $('vS').disabled=!loaded;$('export').disabled=!loaded;$('exportall').disabled=!pages.length;$('tools').hidden=!loaded;$('vT').disabled=$('vO').disabled=!loaded}
 function pageBar(){const n=pages.length,T=$('thumbs');T.hidden=!n;uiState();
   if(T.children.length!==n){T.innerHTML='';pages.forEach((p,i)=>{const b=document.createElement('button');b.className='th';b.setAttribute('aria-label','Page '+(i+1));
@@ -1881,7 +1911,7 @@ function frame(){raf=0;if(!gl||!loaded||exporting||gl.isContextLost())return;
       quads([[Math.min(x,x+dx*arm),Math.min(y,y+dy*w),Math.max(x,x+dx*arm),Math.max(y,y+dy*w),0,0,0,0],[Math.min(x,x+dx*w),Math.min(y,y+dy*arm),Math.max(x,x+dx*w),Math.max(y,y+dy*arm),0,0,0,0]])}}
   const r=regs[sel];if(r){const a=12*k;for(const [cx,cy] of [[0,0],[1,0],[0,1],[1,1]]){const x=r.x+cx*r.w-a/2,y=r.y+cy*r.h-a/2;C(pal.hEdge);quads([[x-1.5*k,y-1.5*k,x+a+1.5*k,y+a+1.5*k,0,0,0,0]]);C(pal.line,1);quads([[x,y,x+a,y+a,0,0,0,0]])}
     const g=4*k,L=6*k,t=k;C(pal.line,1);quads([[r.x+r.w/2-t,r.y-g-L,r.x+r.w/2+t,r.y-g,0,0,0,0],[r.x+r.w/2-t,r.y+r.h+g,r.x+r.w/2+t,r.y+r.h+g+L,0,0,0,0],[r.x-g-L,r.y+r.h/2-t,r.x-g,r.y+r.h/2+t,0,0,0,0],[r.x+r.w+g,r.y+r.h/2-t,r.x+r.w+g+L,r.y+r.h/2+t,0,0,0,0]])}  /* target-lock ticks */
-  if(hoverPt&&!drag&&(tool==='brush'||tool==='eraser'||tool==='heal')){const rr=pSize()/2,dt=Math.max(1,1.5*k),n=Math.max(24,Math.min(96,Math.round(rr*cam.s)));col(1,1,1,.9);
+  if(hoverPt&&!drag&&(tool==='brush'||tool==='eraser'||tool==='heal'||tool==='tahrir')){const rr=pSize()/2,dt=Math.max(1,1.5*k),n=Math.max(24,Math.min(96,Math.round(rr*cam.s)));col(1,1,1,.9);
     for(let i=0;i<n;i++){const a=i/n*Math.PI*2,x0=hoverPt.x+Math.cos(a)*rr,y0=hoverPt.y+Math.sin(a)*rr;quads([[x0-dt,y0-dt,x0+dt,y0+dt,0,0,0,0]])}
     col(0,0,0,.8);for(let i=0;i<n;i++){const a=(i+.5)/n*Math.PI*2,x0=hoverPt.x+Math.cos(a)*rr,y0=hoverPt.y+Math.sin(a)*rr;quads([[x0-dt/2,y0-dt/2,x0+dt/2,y0+dt/2,0,0,0,0]])}}
   if(drag&&drag.mode==='new'){C(pal.marq);quads([[Math.min(drag.x0,drag.x1),Math.min(drag.y0,drag.y1),Math.max(drag.x0,drag.x1),Math.max(drag.y0,drag.y1),0,0,0,0]])}
@@ -1909,11 +1939,13 @@ function showTools(on){showWin('tools',on)}
 function setTarget(t){paintOnImage=t==='image';$('pOnLayer').setAttribute('aria-pressed',!paintOnImage);$('pOnImage').setAttribute('aria-pressed',paintOnImage);
   $$('#paintbar [data-tool=eraser]')[0].title=paintOnImage?'Eraser: wipes the page to white (E)':'Eraser: removes your paint (E)';savePaintPrefs()}
 $('pOnLayer').onclick=()=>setTarget('layer');$('pOnImage').onclick=()=>setTarget('image');
-const TOOL_ICON={select:'cursor',brush:'brush',eraser:'eraser',heal:'heal',pick:'pick',text:'textbox'};
-$$('#paintbar [data-tool]').forEach(b=>{b.innerHTML=ic(TOOL_ICON[b.dataset.tool]);b.onclick=()=>setTool(b.dataset.tool)});
+IC.wand='<path d="m4 20 11-11"/><path d="m13 7 2 2"/><path d="M17 3v3M15.5 4.5h3M20 9v2M19 10h2M12 3v1.5M11.25 3.75h1.5"/>';
+const TOOL_ICON={select:'cursor',brush:'brush',eraser:'eraser',heal:'heal',tahrir:'wand',pick:'pick',text:'textbox'};
+$$('#paintbar [data-tool]').forEach(b=>{b.innerHTML=ic(TOOL_ICON[b.dataset.tool]);b.onclick=()=>setTool(b.dataset.tool)});$('detect').innerHTML=ic('scan');
 function setTool(t){tool=t;$$('#paintbar [data-tool]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));if(t!=='select'){sel=-1;markSel()}
   cv.style.cursor=t==='text'?'text':'crosshair';hoverPt=null;paint();
-  if(t==='text')toast('Drag on the page to place a text box.',2500)}
+  if(t==='text')toast('Drag on the page to place a text box.',2500);
+  if(t==='tahrir')toast('Tahrir: paint over the text you want gone. When you let go, '+trEngineName()+' cleans it'+($('trplace').checked?' and the translation is placed in a matching style.':'.'),4000)}
 const pSize=()=>+$('psize').value,pAlpha=()=>+$('palpha').value/100;
 $('psize').oninput=()=>{$('psizev').textContent=$('psize').value;paint()};$('palpha').oninput=()=>{$('palphav').textContent=$('palpha').value+'%'};
 try{const ps=JSON.parse(localStorage.getItem('kars_paint')||'{}');if(ps.c)$('pcolor').value=ps.c;if(ps.s){$('psize').value=ps.s;$('psizev').textContent=ps.s}if(ps.a){$('palpha').value=ps.a;$('palphav').textContent=ps.a+'%'}
@@ -2004,11 +2036,12 @@ function paintStart(e,p){const pg=pages[cur],pc=ensurePaint(pg);
     $('pcolor').value='#'+[c[0],c[1],c[2]].map(v=>v.toString(16).padStart(2,'0')).join('');savePaintPrefs();setTool('brush');toast('Colour picked. The brush is ready.',1800);return}
   const snap=document.createElement('canvas');snap.width=pc.width;snap.height=pc.height;snap.getContext('2d').drawImage(pc,0,0);
   if(tool==='heal'&&healing)return toast('Still healing the last area…',1500);
-  if(paintOnImage||tool==='heal'){strokeTmp=document.createElement('canvas');strokeTmp.width=src.width;strokeTmp.height=src.height;drag={mode:'paint',pg,img:true,heal:tool==='heal',last:p,bb:{x0:p.x,y0:p.y,x1:p.x,y1:p.y}};return paintSeg(p,p)}
+  if(tool==='tahrir'&&tahrirBusy)return toast('Tahrir is still working on the last area…',1500);
+  if(paintOnImage||tool==='heal'||tool==='tahrir'){strokeTmp=document.createElement('canvas');strokeTmp.width=src.width;strokeTmp.height=src.height;drag={mode:'paint',pg,img:true,heal:tool==='heal'||tool==='tahrir',tahrir:tool==='tahrir',last:p,bb:{x0:p.x,y0:p.y,x1:p.x,y1:p.y}};return paintSeg(p,p)}
   if(tool==='brush'&&pAlpha()<1){strokeTmp=document.createElement('canvas');strokeTmp.width=pc.width;strokeTmp.height=pc.height}  /* soft brush: one stroke never darkens where it overlaps itself */
   drag={mode:'paint',pg,snap,last:p,bb:{x0:p.x,y0:p.y,x1:p.x,y1:p.y}};paintSeg(p,p)}
 function paintSeg(a,b){const pc=drag.pg.paint,x=(strokeTmp||pc).getContext('2d'),er=tool==='eraser'&&!drag.img;x.save();
-  x.globalCompositeOperation=er?'destination-out':'source-over';x.strokeStyle=er?'#000':drag.heal?'rgb(255,40,90)':tool==='eraser'?'#fff':$('pcolor').value;x.lineWidth=pSize();x.lineCap=x.lineJoin='round';
+  x.globalCompositeOperation=er?'destination-out':'source-over';x.strokeStyle=er?'#000':drag.tahrir?'rgb(150,80,255)':drag.heal?'rgb(255,40,90)':tool==='eraser'?'#fff':$('pcolor').value;x.lineWidth=pSize();x.lineCap=x.lineJoin='round';
   x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x+.01,b.y);x.stroke();x.restore();const B=drag.bb;B.x0=Math.min(B.x0,b.x);B.y0=Math.min(B.y0,b.y);B.x1=Math.max(B.x1,b.x);B.y1=Math.max(B.y1,b.y);render()}
 function paintEnd(d){if(d.img)return imgEnd(d);const pc=d.pg.paint,x=pc.getContext('2d');if(strokeTmp){x.save();x.globalAlpha=pAlpha();x.drawImage(strokeTmp,0,0);x.restore();strokeTmp=null}
   const m=pSize()/2+2,X=Math.max(0,Math.floor(d.bb.x0-m)),Y=Math.max(0,Math.floor(d.bb.y0-m)),W=Math.min(pc.width,Math.ceil(d.bb.x1+m))-X,H=Math.min(pc.height,Math.ceil(d.bb.y1+m))-Y;
@@ -2016,7 +2049,7 @@ function paintEnd(d){if(d.img)return imgEnd(d);const pc=d.pg.paint,x=pc.getConte
   savePaint(d.pg);render()}
 /* a stroke on the image itself: blend it into the page, re-clean the boxes it touched, and save the new page */
 function strokeBox(d){const m=pSize()/2+2,X=Math.max(0,Math.floor(d.bb.x0-m)),Y=Math.max(0,Math.floor(d.bb.y0-m));return{x:X,y:Y,w:Math.min(src.width,Math.ceil(d.bb.x1+m))-X,h:Math.min(src.height,Math.ceil(d.bb.y1+m))-Y}}
-function imgEnd(d){if(d.heal)return healEnd(d);const b=strokeBox(d),t=strokeTmp;strokeTmp=null;if(b.w<=0||b.h<=0)return render();
+function imgEnd(d){if(d.tahrir)return tahrirEnd(d);if(d.heal)return healEnd(d);const b=strokeBox(d),t=strokeTmp;strokeTmp=null;if(b.w<=0||b.h<=0)return render();
   const before=sctx.getImageData(b.x,b.y,b.w,b.h);sctx.save();sctx.globalAlpha=tool==='eraser'?1:pAlpha();sctx.drawImage(t,0,0);sctx.restore();
   logG({t:'img',pg:d.pg,...b,before,label:tool==='eraser'?'Erased on the image':'Painted on the image'});imgChanged(d.pg,b)}
 function imgChanged(pg,b){regs.forEach(r=>{if(!r.free&&r.x<b.x+b.w&&r.x+r.w>b.x&&r.y<b.y+b.h&&r.y+r.h>b.y)prep(r)});pageDirty=true;render();saveImg(pg)}
@@ -2092,6 +2125,82 @@ function healEnd(d){const b=strokeBox(d),t=strokeTmp;strokeTmp=null;render();if(
   const m=Math.round(clamp(Math.max(b.w,b.h)*.6,24,140)),X=Math.max(0,b.x-m),Y=Math.max(0,b.y-m),W=Math.min(src.width,b.x+b.w+m)-X,H=Math.min(src.height,b.y+b.h+m)-Y;
   const a=t.getContext('2d').getImageData(X,Y,W,H).data,hole=new Uint8Array(W*H);let n=0;for(let i=0;i<W*H;i++)if(a[i*4+3]>40){hole[i]=1;n++}
   if(n)healArea(d.pg,hole,X,Y,W,H,b,'Healed the art')}
+/* ---------- Tahrir (تحرير): paint over text drawn on the art. An image AI rebuilds the art under it (Gemini, IOPaint, or KARS Heal),
+   only the painted pixels (softened at the edge) take the new art, and then Claude reads the old lettering and a box with the
+   translation is placed in the font and look closest to it. One undo step removes the cleaning, another the box. ---------- */
+let tahrirBusy=false;
+const trEngineName=()=>({gemini:'Gemini',iopaint:'IOPaint',heal:'KARS Heal'})[$('trengine').value];
+function trUI(){const e=$('trengine').value;$('gemrow').hidden=e!=='gemini';$('iorow').hidden=e!=='iopaint';$('gemkey').value=keys.gemini||'';$('gemmodel').value=keys.gemmodel||'';$('iourl').value=keys.iourl||'';
+  $('trnote').textContent={gemini:'Gemini redraws lettering, line art and screentone very well. A few cents per edit. Get a key at aistudio.google.com/apikey.',
+    iopaint:'Free and private: runs on your PC. Install it once (pip install iopaint), start it with: iopaint start --model=lama --port=8080. Open KARS with start-kars so it can reach IOPaint.',
+    heal:'No AI and no internet: KARS rebuilds the area from the art around it. Best on plain or simple backgrounds.'}[e]}
+$('trengine').addEventListener('change',trUI);trUI();
+$('gemkey').onchange=()=>{keys.gemini=$('gemkey').value.trim();saveKeys()};$('gemmodel').onchange=()=>{keys.gemmodel=$('gemmodel').value.trim();saveKeys()};$('iourl').onchange=()=>{keys.iourl=$('iourl').value.trim();saveKeys()};
+const cvs=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c};
+const toB64=c=>c.toDataURL('image/png').split(',')[1];
+const loadImg=src=>new Promise((ok,no)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=()=>no(new Error('the AI sent back an image KARS could not read'));im.src=src});
+/* Gemini keeps the shape of the picture it is given only for these shapes, so the area sent is grown to the closest one */
+const GEM_AR=[[1,1],[2,3],[3,2],[3,4],[4,3],[4,5],[5,4],[9,16],[16,9],[21,9]];
+function trArea(b){const m=Math.round(clamp(Math.max(b.w,b.h)*.5,32,256));let X=b.x-m,Y=b.y-m,W=b.w+2*m,H=b.h+2*m,ar=null;
+  if($('trengine').value==='gemini'){ar=GEM_AR.reduce((a,c)=>Math.abs(Math.log(c[0]/c[1]/(W/H)))<Math.abs(Math.log(a[0]/a[1]/(W/H)))?c:a);
+    const want=ar[0]/ar[1];if(W/H<want){const n=Math.round(H*want);X-=(n-W)/2;W=n}else{const n=Math.round(W/want);Y-=(n-H)/2;H=n}}
+  W=Math.min(W,src.width);H=Math.min(H,src.height);X=Math.round(clamp(X,0,src.width-W));Y=Math.round(clamp(Y,0,src.height-H));return{X,Y,W,H,ar}}
+async function trGemini(crop,maskC,ar){const key=(keys.gemini||'').trim();if(!key)throw new Error('add your Gemini API key in Settings > Tahrir');
+  const model=(keys.gemmodel||'').trim()||'gemini-2.5-flash-image',show=cvs(crop.width,crop.height),x=show.getContext('2d');x.drawImage(crop,0,0);x.globalAlpha=.55;x.drawImage(maskC,0,0);
+  const body={contents:[{parts:[{text:'Image 1 is part of a manga or manhwa page. Image 2 is the same picture with the area to clean painted over in colour. Remove every letter of text in that area, including sound-effect lettering and its outline or shadow, and rebuild the artwork underneath so it carries on naturally: the same line art, shading, screentone, hatching, colours and drawing style as the art around it. Change nothing outside that area, add nothing new, and keep the exact framing and composition of image 1. Return only the cleaned image.'},
+    {inline_data:{mime_type:'image/png',data:toB64(crop)}},{inline_data:{mime_type:'image/png',data:toB64(show)}}]}],
+    generationConfig:{responseModalities:['IMAGE'],imageConfig:{aspectRatio:ar[0]+':'+ar[1]}}};
+  let res;try{res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':key},body:JSON.stringify(body)})}
+  catch(e){throw new Error('could not reach Gemini. Check your internet connection')}
+  const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error('Gemini: '+((j.error&&j.error.message)||res.status));
+  const parts=(j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[],im=parts.map(p=>p.inlineData||p.inline_data).find(Boolean);
+  if(!im){const why=(j.candidates&&j.candidates[0]&&j.candidates[0].finishReason)||(j.promptFeedback&&j.promptFeedback.blockReason);throw new Error('Gemini sent no image back'+(why?` (${why})`:'')+'. Try again, or paint a little wider')}
+  return loadImg(`data:${im.mimeType||im.mime_type||'image/png'};base64,${im.data}`)}
+async function trIopaint(crop,maskC){const base=((keys.iourl||'').trim()||'http://127.0.0.1:8080').replace(/\/+$/,''),m=cvs(crop.width,crop.height),x=m.getContext('2d');
+  x.fillStyle='#000';x.fillRect(0,0,m.width,m.height);x.drawImage(maskC,0,0);x.globalCompositeOperation='source-in';x.fillStyle='#fff';x.fillRect(0,0,m.width,m.height);x.globalCompositeOperation='destination-over';x.fillStyle='#000';x.fillRect(0,0,m.width,m.height);
+  const payload={image:toB64(crop),mask:toB64(m)};let res;
+  try{res=localMode?await fetch('/api/iopaint',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({base,...payload})})
+      :await fetch(base+'/api/v1/inpaint',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)})}
+  catch(e){throw new Error(`could not reach IOPaint at ${base}. Is it running? (iopaint start --model=lama --port=8080)`)}
+  if(!res.ok){let t='';try{const j=await res.json();t=j.error||j.detail||j.message||''}catch(e){}throw new Error('IOPaint: '+(typeof t==='string'&&t?t:res.status))}
+  const blob=await res.blob();return createImageBitmap(blob)}
+/* the cleaned picture, only where you painted (grown a little and softened, so no seam shows) */
+function trBlend(clean,maskC,W,H){const out=cvs(W,H),x=out.getContext('2d');x.drawImage(clean,0,0,W,H);
+  const soft=cvs(W,H),y=soft.getContext('2d'),g=Math.max(2,Math.round(Math.min(W,H)/160));y.filter=`blur(${g}px)`;for(const [dx,dy] of [[0,0],[g,0],[-g,0],[0,g],[0,-g]])y.drawImage(maskC,dx,dy);
+  x.globalCompositeOperation='destination-in';x.drawImage(soft,0,0);return out}
+const TR_SCHEMA={type:'object',properties:{language:{type:'string',enum:[...Object.keys(BYNAME),'Other']},original:{type:'string'},translation:{type:'string'},style:{type:'string',enum:STYLES},
+  font:{type:'string',enum:Object.keys(F)},italic:{type:'boolean'},outline:{type:'boolean'},color:{type:'string'},outline_color:{type:'string'},angle:{type:'number'},weight:{type:'integer',enum:[400,700,900]},caps:{type:'boolean'}},
+  required:['language','original','translation','style','font','italic','outline','color','outline_color','angle','weight','caps'],additionalProperties:false};
+async function trPlace(pg,b,before,area){const hex=v=>/^#[0-9a-f]{6}$/i.test(String(v||'').trim())?String(v).trim().toLowerCase():'';
+  const geom={x:Math.max(0,b.x-4),y:Math.max(0,b.y-4)};geom.w=Math.min(src.width-geom.x,b.w+8);geom.h=Math.min(src.height-geom.y,b.h+8);
+  const r=newBox(geom,{free:true,style:'sfx',size:Math.max(24,Math.round(geom.h*.8)),status:'Tahrir: reading the original lettering…'});r.st={fit:true};
+  pg.regs.push(r);logG({t:'add',box:r,idx:pg.regs.length-1});sel=pg.regs.indexOf(r);listAdd(r);setStatus(r,'Tahrir: reading the original lettering with '+aiName()+'…');renderBox(r);
+  if(!usesClaude())return setStatus(r,'The art is cleaned. Type the translation: matching the lettering needs a Claude engine in Settings.');
+  try{const show=cvs(area.W,area.H),x=show.getContext('2d');x.putImageData(before,0,0);x.strokeStyle='#e00';x.lineWidth=Math.max(3,area.W/200);x.strokeRect(b.x-area.X,b.y-area.Y,b.w,b.h);
+    const text=`${langLine()}\n${glossLine()}\n\nThe text inside the red outline is lettering drawn on the art (a title, sign, sound effect or similar). It has been removed and will be lettered again in the target language, in the same look. "original" is its exact source text and "translation" your translation (short, like the original). Describe the original lettering so it can be copied: "style" its kind; "font" the available font closest to its look that supports the target language's script; "color" its main fill colour as #rrggbb; "outline" true if the letters have a contrasting outline or halo, and "outline_color" that colour as #rrggbb (or "" if none); "angle" its rotation in degrees from -45 to 45, clockwise positive; "weight" 400, 700 or 900; "italic" true if slanted; "caps" true if it is all capitals. ${STYLE_NOTE}`;
+    const o=await askClaude(GUIDE,text,[{label:'part of the page, before cleaning; the lettering to replace is outlined in red',canvas:fitCanvas(show,1400)}],TR_SCHEMA);
+    if(!o||typeof o.translation!=='string')throw new Error('no translation came back');if(!pg.regs.includes(r))return;
+    const sc=script(),fk=F[o.font]&&F[o.font].s===sc?o.font:null,st={fit:true};
+    if(hex(o.color))st.color=hex(o.color);if(o.outline&&hex(o.outline_color))st.ocolor=hex(o.outline_color);if(isFinite(+o.angle)&&Math.abs(+o.angle)>=2)st.angle=clamp(Math.round(+o.angle),-45,45);
+    if([700,900].includes(o.weight))st.weight=o.weight;if(o.caps&&sc==='lat')st.caps=true;
+    Object.assign(r,{src:String(o.original||''),txt:applyGloss(String(o.translation)),manual:false,style:STYLES.includes(o.style)?o.style:'sfx',match:fk,font:fk||'auto',italic:!!o.italic,outline:!!o.outline,st});
+    if(hex(o.color))r.ink=[1,3,5].map(i=>parseInt(st.color.slice(i,i+2),16));
+    syncBox(r);setStatus(r,`Tahrir: placed in ${F[fontKey(r)].n}, matched to the original lettering. Review it.`);renderBox(r);list()}
+  catch(e){setStatus(r,'The art is cleaned, but the lettering could not be read: '+claudeErr(e).replace(/^.*request failed: /,'')+'. Type the translation.')}}
+async function tahrirEnd(d){const t=strokeTmp;strokeTmp=null;render();const b=strokeBox(d);if(b.w<=0||b.h<=0)return;
+  const pg=d.pg,eng=$('trengine').value,A=trArea(b),{X,Y,W,H}=A;
+  const maskC=cvs(W,H),mx=maskC.getContext('2d');mx.drawImage(t,X,Y,W,H,0,0,W,H);
+  const before=sctx.getImageData(X,Y,W,H);
+  if(eng==='heal'){const a=mx.getImageData(0,0,W,H).data,hole=new Uint8Array(W*H);let n=0;for(let i=0;i<W*H;i++)if(a[i*4+3]>40){hole[i]=1;n++}
+    if(!n)return;await healArea(pg,hole,X,Y,W,H,{x:X,y:Y,w:W,h:H},'Tahrir: removed the text');if(pages[cur]===pg&&$('trplace').checked)trPlace(pg,b,before,A);return}
+  tahrirBusy=true;toast(`Tahrir: ${trEngineName()} is cleaning the art…`,0);
+  try{const crop=cvs(W,H);crop.getContext('2d').putImageData(before,0,0);
+    const clean=eng==='gemini'?await trGemini(crop,maskC,A.ar):await trIopaint(crop,maskC);if(pages[cur]!==pg)return toast('You changed pages, so the cleaned art was not used.',4000);
+    const patch=trBlend(clean,maskC,W,H);sctx.drawImage(patch,X,Y);
+    logG({t:'img',pg,x:X,y:Y,w:W,h:H,before,label:'Tahrir: removed the text'});imgChanged(pg,{x:X,y:Y,w:W,h:H});
+    toast(`Tahrir: cleaned with ${trEngineName()}. Ctrl+Z undoes it.`,2600);if($('trplace').checked)trPlace(pg,b,before,A)}
+  catch(e){toast('Tahrir could not clean it: '+e.message+'.',8000)}
+  finally{tahrirBusy=false}}
 /* remove a box's original lettering: its ink (and the outline around it) is found, grown a little, and healed */
 function healBox(r){if(healing)return;const m=Math.round(clamp(Math.max(r.w,r.h)*.5,24,140)),X=Math.max(0,r.x-m),Y=Math.max(0,r.y-m),W=Math.min(src.width,r.x+r.w+m)-X,H=Math.min(src.height,r.y+r.h+m)-Y;
   const d=sctx.getImageData(X,Y,W,H).data,ink=r.ink||[17,17,17],lum=c=>.299*c[0]+.587*c[1]+.114*c[2],halo=lum(ink)>140?[17,17,17]:[255,255,255],inkM=new Uint8Array(W*H);
@@ -2118,7 +2227,7 @@ cv.onpointerdown=e=>{if(!loaded)return;pageFocus=false;cv.setPointerCapture(e.po
   if(ptrs.size>2)return;
   if(e.button===1||spaceDown){e.preventDefault();drag={mode:'pan',l0:local(e),ox:cam.ox,oy:cam.oy};cv.style.cursor='grabbing';return}
   if(e.button>0)return;const p=pos(e);
-  if(tool==='brush'||tool==='eraser'||tool==='heal'||tool==='pick')return paintStart(e,p);
+  if(tool==='brush'||tool==='eraser'||tool==='heal'||tool==='tahrir'||tool==='pick')return paintStart(e,p);
   if(tool==='text'){drag={mode:'new',free:true,x0:p.x,y0:p.y,x1:p.x,y1:p.y};return paint()}
   const h=e.shiftKey?null:hit(p);
   if(h&&styleClip&&!h.r.stamp){sel=regs.indexOf(h.r);markSel();if(h.r.id!==styleClip.from)pasteStyle([h.r]);return paint()}
@@ -2129,7 +2238,7 @@ cv.onpointermove=e=>{if(!loaded)return;if(ptrs.has(e.pointerId))ptrs.set(e.point
     cam.ox=cx-(pinch.cx-pinch.ox)*s/pinch.s;cam.oy=cy-(pinch.cy-pinch.oy)*s/pinch.s;cam.s=s;fitMode=false;return paint()}
   const p=pos(e);
   if(drag&&drag.mode==='paint'){paintSeg(drag.last,p);drag.last=p;return}
-  if(!drag&&(tool==='brush'||tool==='eraser'||tool==='heal')){hoverPt=p;cv.style.cursor=spaceDown?'grab':'crosshair';return paint()}
+  if(!drag&&(tool==='brush'||tool==='eraser'||tool==='heal'||tool==='tahrir')){hoverPt=p;cv.style.cursor=spaceDown?'grab':'crosshair';return paint()}
   if(!drag&&tool!=='select'){cv.style.cursor=spaceDown?'grab':tool==='text'?'text':'crosshair';return}
   if(!drag){const h=e.shiftKey||spaceDown?null:hit(p);cv.style.cursor=spaceDown?'grab':!h?'crosshair':h.mode==='move'?'move':h.cx===h.cy?'nwse-resize':'nesw-resize';return}
   if(drag.mode==='pan'){const l=local(e);cam.ox=drag.ox+l.x-drag.l0.x;cam.oy=drag.oy+l.y-drag.l0.y;fitMode=false;return paint()}
@@ -2336,7 +2445,7 @@ const SCHEMA={type:'object',properties:{language:{type:'string',enum:[...Object.
 let FONTGUIDE=Object.entries(F).map(([k,v])=>`${k}: ${v.d}(${({ar:'Arabic',ko:'Korean',ja:'Japanese',lat:'Latin'})[v.s]} script)`).join('\n');
 /* How KARS translates: for meaning and voice, like a published localization, never word for word. */
 const GUIDE='You are a professional manga, manhwa and manhua translator preparing a licensed release. Translate for meaning, not word for word: say what each character means, in the way they would say it, the way a published localization reads. Use the whole page and the earlier lines to work out who is speaking, pronouns the source leaves out, tone, jokes and references. Keep names and terms consistent and follow the glossary exactly. Match each speaker\'s voice (rough, polite, childish, formal). Keep each line about as long as the original so it fits its bubble. Never add notes, brackets or explanations. If text is cut off or hard to read, give your best reading.';
-let STYLE_NOTE='"style" describes the original lettering: thought = a character\'s inner thoughts (often a cloud-shaped or dotted bubble), shout = large bold emphatic, handwritten = casual script, narration = formal caption box, sfx = sound effect, otherwise normal. "font" is the available font that looks most like the original lettering and supports the script of the target language; "italic" is true if the original is slanted; "outline" is true if its letters have a contrasting outline or halo. Available fonts:\n'+FONTGUIDE;
+let STYLE_NOTE='"style" is the kind of bubble: normal = ordinary speech bubble; thought = a character\'s inner thoughts (a cloud-shaped, dotted or soft bubble); box = words in a square or rectangular box that are not the narrator (a character\'s words or inner voice in a box); system = a game-like system window, status screen, notification or message on a screen; narration = the narrator\'s caption; side = small side text outside the bubbles (asides, mutters, little remarks beside a character); shout = shouting, a jagged or spiky bubble, large bold emphatic lettering; handwritten = casual handwritten script; sfx = a sound effect drawn in the art. "font" is the available font that looks most like the original lettering and supports the script of the target language; "italic" is true if the original is slanted; "outline" is true if its letters have a contrasting outline or halo. Available fonts:\n'+FONTGUIDE;
 const PAGE_ITEM={type:'object',properties:{id:{type:'integer'},box:{type:'array',items:{type:'number'}},kind:{type:'string',enum:['speech','thought','narration','sign','sfx']},
   original:{type:'string'},translation:{type:'string'},style:{type:'string',enum:STYLES},font:{type:'string',enum:Object.keys(F)},italic:{type:'boolean'},outline:{type:'boolean'}},
   required:['id','box','kind','original','translation','style','font','italic','outline'],additionalProperties:false};
@@ -2554,7 +2663,7 @@ function setView(orig){showOrig=orig;$('vT').setAttribute('aria-pressed',!orig);
 $('vT').onclick=()=>setView(false);$('vO').onclick=()=>setView(true);
 
 /* ---------- side panel ---------- */
-function markSel(){$$('.reg').forEach((el,j)=>{el.classList.toggle('sel',j===sel);if(j===sel)el.scrollIntoView({block:'nearest'})})}
+function markSel(){$$('.reg').forEach((el,j)=>{el.classList.toggle('sel',j===sel);if(j===sel)el.scrollIntoView({block:'nearest'})});marksUI()}
 function focusBox(r){sel=regs.indexOf(r);markSel();animateCam(cv.clientWidth/2-(r.x+r.w/2)*cam.s,cv.clientHeight/2-(r.y+r.h/2)*cam.s,cam.s)}
 /* box cards: the font menu and the Text style controls are built on demand (see list) */
 const fontLabel=k=>k==='auto'?'Auto':F[k]?(F[k].custom?'★ ':'')+F[k].n+({ar:' (Arabic)',ko:' (Korean)',ja:' (Japanese)'}[F[k].s]||''):k;
@@ -2578,7 +2687,7 @@ const stgHTML=r=>`
         <span></span><span class="row2"><label><input type="checkbox" data-k="caps"> Capitals</label><label><input type="checkbox" data-k="fit"> Shrink to fit the bubble</label><label><input type="checkbox" data-k="vert"> Vertical (Japanese)</label></span>
         <span></span><span class="row2"><button type="button" data-pset title="Every box of this kind in the series uses this look, unless you change that box">Save as the series style</button><button type="button" data-reset="all">Reset text style</button></span>`;
 function list(focus){const Lc=$('list');Lc.innerHTML='';cardOf.clear();pageBar();$('bcount').hidden=!regs.length;$('bcount').textContent=regs.length;
-  if(!regs.length){Lc.innerHTML=`<div class="emptylist">${loaded?'No boxes on this page yet.<br>Press <b>Find bubbles</b>, or drag over text on the page.':'Open a chapter to start.'}</div>`;return}
+  if(!regs.length){Lc.innerHTML=`<div class="emptylist">${loaded?'No boxes on this page yet.<br>Press <b>Find bubbles</b> in the paint tools, or drag over text on the page.':'Open a chapter to start.'}</div>`;return}
   const allF=regs.every(r=>r.fold);Lc.insertAdjacentHTML('beforeend',`<div class="listbar"><small class="mute">${regs.length} box${regs.length>1?'es':''}</small><span class="spacer"></span><button id="cmpct" class="ghost" title="Compact: only the selected box shows all its tools">${Lc.classList.contains('compact')?'Full cards':'Compact'}</button><button id="foldall" class="ghost">${allF?'Show all':'Hide all'}</button></div>`);
   $('foldall').onclick=()=>{regs.forEach(r=>r.fold=!allF);list();scheduleSave()};
   regs.forEach((r,i)=>card(r,i,focus,Lc));
@@ -2622,7 +2731,7 @@ function card(r,i,focus,Lc){const d=document.createElement('div');d.className='r
     P.querySelector('[data-grow]').onclick=()=>setSt('fit',false);
     P.querySelectorAll('[data-al]').forEach(b=>b.onclick=()=>setSt('align',b.dataset.al));
     P.querySelectorAll('[data-reset]').forEach(b=>b.onclick=()=>{const k=b.dataset.reset;checkpoint(r,null,'Reset the text style');if(k==='all')r.st={};else r.st={...(r.st||{}),[k]:''};syncStyle(r);render()});
-    P.querySelector('[data-ks]').onchange=e=>{checkpoint(r,null,'Kind: '+STYLE_NAME[e.target.value]);r.style=e.target.value;syncBox(r);syncStyle(r);render()};
+    P.querySelector('[data-ks]').onchange=e=>{checkpoint(r,null,'Kind: '+STYLE_NAME[e.target.value]);r.style=e.target.value;syncBox(r);syncStyle(r);render();marksUI()};
     P.querySelector('[data-pset]').onclick=()=>savePreset(r)};
     /* the panel's controls are built the first time it opens, so a long box list stays quick to draw */
     P.ontoggle=()=>{r._open=P.open;if(P.open&&!P.querySelector('[data-k]')){P.querySelector('.stg').innerHTML=stgHTML(r);wireSt();syncStyle(r)}};
@@ -2727,8 +2836,9 @@ function initFonts(){myFonts.forEach(rec=>{registerFont(rec);loadFontSrc(rec)});
     addFont({key:'a_'+slug(css),n:css.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()),family:css,w:400,s:$('gfs').value||'lat',c:'normal',src:'adobe',kit:id});$('kitfam').value=''};
   $('fontfile').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const n=f.name.replace(/\.[^.]+$/,''),key='f_'+slug(n);
     try{const buf=await f.arrayBuffer();new FontFace('kars-test',buf);await DB.put('font:'+key,buf);
-      await addFont({key,n,family:'kars-'+key,w:400,s:$('gfs').value||script(),c:'normal',src:'file',d:`${n}, a font file the translator added`})}
-    catch(err){toast('That file could not be used as a font.',5000)}}}
+      await addFont({key,n,family:'kars-'+key,w:400,s:$('gfs').value||script(),c:'normal',src:'file',d:`${n}, a font file the translator added`});presetList()}
+    catch(err){toast('That file could not be used as a font.',5000)}};
+  $('fontfile2').onchange=$('fontfile').onchange}
 
 /* ---------- export ---------- */
 const baseName=p=>(p&&p.name||'page').replace(/\.[^.]+$/,'');
@@ -2738,12 +2848,25 @@ const snap=async()=>{await stampsReady();return new Promise(ok=>composite().toBl
 async function save(blob,name){if(window.claude){const dl=await claude.use('downloads');
     if(dl){try{await dl.save({filename:name,data:blob})}catch(e){if(e&&e.code!=='cancelled'&&e.code!=='declined')toast('Could not save the file ('+(e.code||'error')+').',6000)}return}}
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+/* the open page as files in the chosen format. WebP cannot be taller than 16,383 px, so a WebP page over 15,000 px is cut where the strip is calm (between panels) */
+const WEBP_MAX=15000,XT={png:'image/png',jpg:'image/jpeg',webp:'image/webp'};
+async function pageFiles(base){const f=$('xfmt').value,q=+$('xq').value/100;if(f==='psd')return[{name:base+'.psd',blob:await pagePsd()}];
+  await stampsReady();const c=composite(),blob=(cv,t)=>new Promise((ok,no)=>cv.toBlob(b=>b?ok(b):no(new Error('the browser could not make the image')),t,q));
+  if(f!=='webp'||c.height<=WEBP_MAX)return[{name:base+'.'+f,blob:await blob(c,XT[f])}];
+  const cuts=calmCuts(c,c.width,c.height,WEBP_MAX/1.4),out=[];
+  /* a piece that still came out too tall is cut evenly */
+  for(let i=1;i<cuts.length;i++){const a=cuts[i-1],b=cuts[i],n=Math.ceil((b-a)/WEBP_MAX);for(let j=0;j<n;j++){const y0=Math.round(a+(b-a)*j/n),y1=Math.round(a+(b-a)*(j+1)/n),pc=document.createElement('canvas');
+      pc.width=c.width;pc.height=y1-y0;const x=pc.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,pc.width,pc.height);x.drawImage(c,0,y0,c.width,y1-y0,0,0,c.width,y1-y0);out.push(pc)}}
+  const pad=String(out.length).length;return Promise.all(out.map(async(pc,i)=>({name:`${base}-${String(i+1).padStart(pad,'0')}.webp`,blob:await blob(pc,'image/webp')})))}
+$('xq').oninput=()=>$('xqV').textContent=$('xq').value;
 $('export').onclick=async()=>{setView(false);const psd=$('xfmt').value==='psd',b=$('export');
-  if(!psd)return save(await snap(),baseName(pages[cur])+'-kars.png');
+  if(!psd){b.disabled=true;try{const fs=await pageFiles(baseName(pages[cur])+'-kars');
+      if(fs.length===1)save(fs[0].blob,fs[0].name);else{const z=new(await needZip())();fs.forEach(f=>z.file(f.name,f.blob));save(await z.generateAsync({type:'blob'}),baseName(pages[cur])+'-kars.zip');toast(`The page was taller than ${WEBP_MAX.toLocaleString()} px, so it was cut into ${fs.length} WebP pieces (in one ZIP).`,5000)}}
+    catch(e){toast('Export failed: '+e.message,6000)}finally{b.disabled=!loaded}return}
   b.disabled=true;try{save(await pagePsd(),baseName(pages[cur])+'-kars.psd');toast('Exported the page as a PSD with layers.')}catch(e){toast('Export failed: '+e.message,6000)}finally{b.disabled=!loaded}};
-const xfmtUI=()=>{const t=$('xfmt').value==='psd'?'PSD':'';document.querySelectorAll('#export .xf,#exportall .xf').forEach(e=>e.textContent=t);
-  $('export').title=t?'Save this page as a layered PSD for Photoshop':'Save this page as a PNG';$('exportall').title=t?'Save every page as a layered PSD, in one ZIP':'Save every page as a PNG, in one ZIP'};
-$('xfmt').addEventListener('change',xfmtUI);xfmtUI();
+const xfmtUI=()=>{const f=$('xfmt').value,t=f==='png'?'':f.toUpperCase();$('xqV').textContent=$('xq').value;$('xqrow').hidden=f!=='jpg'&&f!=='webp';document.querySelectorAll('#export .xf,#exportall .xf').forEach(e=>e.textContent=t);
+  const what={png:'a PNG',jpg:'a JPG',webp:'a WebP',psd:'a layered PSD for Photoshop'}[f];$('export').title='Save this page as '+what;$('exportall').title='Save every page as '+what.replace(/^an? /,'')+', in one ZIP'};
+$('xfmt').addEventListener('change',xfmtUI);xfmtUI();$('mkshow').addEventListener('change',marksUI);
 /* ---------- PSD export, built with ag-psd. Layers, bottom to top: the page, the cleaned bubbles, your paint, stamps, one layer per
    text box drawn exactly as KARS draws it, and a hidden group with each box as editable Photoshop text (Photoshop redraws those when
    you show them; it uses the closest font you have if the exact one is missing) ---------- */
@@ -2776,10 +2899,11 @@ async function pagePsd(){await needLib('Photoshop');await stampsReady();
   return new Blob([buf],{type:'image/vnd.adobe.photoshop'})}
 const rgbArr=c=>{if(!c)return null;const m=/^#?([0-9a-f]{6})$/i.exec(c);return m?[0,2,4].map(i=>parseInt(m[1].slice(i,i+2),16)):null};
 async function exportChapter(){const btn=$('exportall'),back=cur;btn.disabled=true;
-  try{setView(false);exporting=true;const z=new(await needZip())(),used=new Set();
+  try{setView(false);exporting=true;const z=new(await needZip())(),used=new Set();let files=0;
     for(let i=0;i<pages.length;i++){btn.textContent=`Exporting ${i+1}/${pages.length}…`;await show(i);await loadPaint(pages[i]);
-      const psd=$('xfmt').value==='psd';let n=String(i+1).padStart(3,'0')+'-'+baseName(pages[i])+(psd?'.psd':'.png');while(used.has(n))n='_'+n;used.add(n);z.file(n,psd?await pagePsd():await snap())}
-    save(await z.generateAsync({type:'blob'}),chName()+'.zip');toast($('xfmt').value==='psd'?`Exported ${pages.length} pages as layered PSDs.`:`Exported ${pages.length} pages as lossless PNGs.`)}
+      let b=String(i+1).padStart(3,'0')+'-'+baseName(pages[i]);while(used.has(b))b='_'+b;used.add(b);for(const f of await pageFiles(b)){z.file(f.name,f.blob);files++}}
+    save(await z.generateAsync({type:'blob'}),chName()+'.zip');const f=$('xfmt').value;
+    toast(`Exported ${pages.length} pages as ${{png:'lossless PNGs',jpg:'JPGs',webp:'WebPs',psd:'layered PSDs'}[f]}.${files>pages.length?` Tall pages were cut into pieces under ${WEBP_MAX.toLocaleString()} px, ${files} files in all.`:''}`,5000)}
   catch(e){toast('Export failed: '+e.message,6000)}
   finally{exporting=false;await show(back);btn.disabled=false;btn.innerHTML='Export chapter<span class="xf"></span>';xfmtUI()}}
 $('exportall').onclick=()=>{const iss=qaRun();if(iss.some(i=>i.sev==='err'))return qaShow(iss,true);exportChapter()};
@@ -2905,7 +3029,17 @@ async function chStateGet(s,c){return c.id===curC?projState():await DB.get('ch:'
 async function chStatePut(s,c,st){await DB.put('ch:'+c.id,st);Object.assign(c,statsFrom(st.pages.map(p=>p.boxes||[])))}
 
 /* ---------- scripts: plain text, and a Word table for editors outside KARS. Both can be imported back. ---------- */
-const STYLE_NAME={normal:'Dialogue',thought:'Thought',shout:'Shout',handwritten:'Handwritten',narration:'Narration',sfx:'Sound effect'};
+const STYLE_NAME={normal:'Dialogue',thought:'Thought',box:'Box',system:'System',narration:'Narrator',side:'Side text',shout:'Shout',handwritten:'Handwritten',sfx:'Sound effect'};
+/* the marker translators put around or before a line to say which kind of bubble it goes in. A pair of brackets wraps the line; anything else comes before it */
+const DEF_MARK={normal:'""',thought:'()',box:'[]',system:'<>',narration:'OT:',side:'ST:',shout:'::',handwritten:'',sfx:''};
+const marksOf=s=>({...DEF_MARK,...((s||serOf(curS)||{}).markers||{})});
+const PAIRS={'""':1,'()':1,'[]':1,'<>':1,'{}':1,'«»':1,'“”':1,'（）':1,'【】':1,'「」':1,'『』':1};
+const markWrap=(m,t)=>!m?t:PAIRS[m]?m[0]+t+m.slice(1):m+' '+t;
+/* which kind a script line is, and the line without its marker. Longer markers are tried first so "::" wins over ":" */
+function markRead(line,M){const t=line.trim();for(const [k,m] of Object.entries(M).filter(e=>e[1]).sort((a,b)=>b[1].length-a[1].length)){
+    if(PAIRS[m]){const o=m[0],c=m.slice(1);if(t.length>=o.length+c.length&&t.startsWith(o)&&t.endsWith(c))return{kind:k,txt:t.slice(o.length,t.length-c.length).trim()}}
+    else if(t.startsWith(m))return{kind:k,txt:t.slice(m.length).trim()}}
+  return{kind:null,txt:t}}
 function scriptTxt(){const out=[`${chName()} · KARS script · ${new Date().toLocaleDateString()} · ${langName($('lang').value,'lang')} → ${$('tgt').selectedOptions[0].text}`,
     'Edit the lines after → and send the file back. Keep the page headers and box numbers.',''];
   pages.forEach((p,i)=>{out.push(`=== Page ${i+1} · ${p.name} ===`);if(!p.regs.length)out.push('(no boxes)');
@@ -2961,11 +3095,45 @@ $('scriptin').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)impo
 /* ---------- series style presets: one look per kind of text (dialogue, thoughts, shouting…), used by every box of that kind ---------- */
 function presetSummary(p){if(!p)return'Not set: each box uses the font matched to the original.';const st=p.st||{},bits=[p.font&&F[p.font]?F[p.font].n:'Auto font'];
   if(st.size&&st.size!==100)bits.push(st.size+'%');if(st.weight)bits.push({300:'light',400:'regular',700:'bold',900:'black'}[st.weight]||'');if(st.color)bits.push(st.color);if(st.vert)bits.push('vertical');if(st.glow)bits.push('glow');return bits.filter(Boolean).join(' · ')}
-function presetList(){const L=$('presets'),s=serOf(curS);if(!L)return;if(!s){L.innerHTML='<p class="note">Open a series to set its text styles.</p>';return}const P=s.presets||{};
-  L.innerHTML=STYLES.map(k=>`<div class="prow"><b>${STYLE_NAME[k]}</b><small class="mute">${escH(presetSummary(P[k]))}</small><span class="grp">${P[k]?`<button data-use="${k}" title="Make every ${STYLE_NAME[k].toLowerCase()} box in this chapter use this style">Use in chapter</button><button class="icon ghost" data-clr="${k}" title="Clear" aria-label="Clear the ${STYLE_NAME[k]} style">${ic('trash')}</button>`:''}</span></div>`).join('');
+function presetList(){const L=$('presets'),s=serOf(curS);marksUI();if(!L)return;if(!s){L.innerHTML='<p class="note">Open a series to set its bubble types.</p>';return}const P=s.presets||{},M=marksOf(s);
+  L.innerHTML=STYLES.map(k=>`<div class="prow trow"><input class="mk" data-mk="${k}" value="${escH(M[k])}" placeholder="—" maxlength="6" spellcheck="false" aria-label="Marker for ${STYLE_NAME[k]}" title="The marker for ${STYLE_NAME[k].toLowerCase()} lines"><b>${STYLE_NAME[k]}</b>
+      <select data-pf="${k}" aria-label="Font for ${STYLE_NAME[k]}"><option value="">Auto: matched to the original</option>${Object.keys(F).map(f=>`<option value="${f}">${escH(fontLabel(f))}</option>`).join('')}</select>
+      ${P[k]?`<small class="mute">${escH(presetSummary(P[k]))}</small>`:""}<span class="grp">${P[k]?`<button data-use="${k}" title="Make every ${STYLE_NAME[k].toLowerCase()} box in this chapter use this style">Use in chapter</button><button class="icon ghost" data-clr="${k}" title="Clear" aria-label="Clear the ${STYLE_NAME[k]} style">${ic('trash')}</button>`:''}</span></div>`).join('');
+  L.querySelectorAll('[data-pf]').forEach(el=>{const k=el.dataset.pf;el.value=P[k]&&P[k].font&&F[P[k].font]?P[k].font:'';
+    el.onchange=()=>{const f=el.value||null;s.presets={...P,[k]:{...(P[k]||{}),font:f,st:(P[k]||{}).st||{}}};if(!f&&!Object.keys(s.presets[k].st).length)delete s.presets[k];saveLib();presetList();regs.forEach(syncBox);render()}});
+  L.querySelectorAll('[data-mk]').forEach(el=>el.onchange=()=>{const k=el.dataset.mk,v=el.value.trim();s.markers={...(s.markers||{}),[k]:v};saveLib();marksUI()});
   L.querySelectorAll('[data-clr]').forEach(b=>b.onclick=()=>{delete P[b.dataset.clr];s.presets=P;saveLib();presetList();render();list()});
   L.querySelectorAll('[data-use]').forEach(b=>b.onclick=()=>{const k=b.dataset.use,boxes=pages.flatMap(p=>p.regs.filter(r=>(r.style||'normal')===k&&!r.free));
     const n=groupEdit(boxes,`Used the ${STYLE_NAME[k]} style`,()=>boxes.forEach(r=>{r.st={};r.font='auto'}));toast(n?`${n} box${n>1?'es':''} now use the ${STYLE_NAME[k]} style.`:`Every ${STYLE_NAME[k].toLowerCase()} box already uses it.`)})}
+/* the marker guide beside the panel: each marker and its bubble type. Clicking one makes the selected box that type */
+function marksUI(){const el=$('marks');if(!el)return;const M=marksOf(),on=loaded&&$('mkshow').checked,r=regs[sel];el.hidden=!on;if(!on)return;
+  /* rebuilt only when the markers change, so a click is never lost to a rebuild in the middle of it */
+  const key=JSON.stringify(M);if(el._key!==key){el._key=key;
+  el.innerHTML=STYLES.filter(k=>M[k]).map(k=>`<button type="button" data-mg="${k}" title="${STYLE_NAME[k]}: lines marked ${escH(M[k])}. Click to make the selected box ${STYLE_NAME[k].toLowerCase()}."><b dir="ltr">${escH(M[k])}</b><small>${STYLE_NAME[k]}</small></button>`).join('');
+  el.querySelectorAll('[data-mg]').forEach(b=>b.onclick=()=>{const r=regs[sel];if(!r||r.stamp)return toast('Select a box first, then click its bubble type.',2500);const k=b.dataset.mg;if((r.style||'normal')===k)return;
+    checkpoint(r,null,'Kind: '+STYLE_NAME[k]);r.style=k;syncBox(r);syncStyle(r);const ks=inCard(r,`[data-ks="${r.id}"]`);if(ks)ks.value=k;renderBox(r);marksUI()})}
+  el.querySelectorAll('[data-mg]').forEach(b=>b.setAttribute('aria-pressed',!!r&&!r.stamp&&(r.style||'normal')===b.dataset.mg))}
+/* a translator's script: one line per bubble with its marker, optional page lines */
+function pasteRows(text){const M=marksOf(),rows=[];let page=null,any=false;
+  for(const raw of text.replace(/\r/g,'').split('\n')){const t=raw.trim();if(!t)continue;let m;
+    if((m=t.match(/^(?:=+\s*)?(?:page|p|صفحة|الصفحة|ص)\s*\.?\s*(\d+)\b.*$/i))&&t.length<40){page=+m[1];any=true;continue}
+    const g=markRead(t,M);rows.push({page,...g})}
+  return{rows,paged:any}}
+function pastePlan(text){const {rows,paged}=pasteRows(text),plan=[];let left=0;
+  if(paged){const at={};for(const w of rows){const pi=(w.page||1)-1,pg=pages[pi];at[pi]=at[pi]||0;const r=pg&&pg.regs.filter(q=>!q.stamp)[at[pi]++];if(r)plan.push([r,w]);else left++}}
+  else{const B=regs.filter(q=>!q.stamp),i0=Math.max(0,B.indexOf(regs[sel]));rows.forEach((w,i)=>{const r=B[i0+i];if(r)plan.push([r,w]);else left++})}
+  return{plan,left,rows}}
+const psInfo=()=>{const {plan,left,rows}=pastePlan($('pstxt').value),kinds=new Set(plan.map(p=>p[1].kind).filter(Boolean));
+  $('psinfo').textContent=!rows.length?'':`${rows.length} line${rows.length>1?'s':''} → ${plan.length} box${plan.length===1?'':'es'}${kinds.size?' · '+[...kinds].map(k=>STYLE_NAME[k]).join(', '):''}${left?` · ${left} line${left>1?'s':''} have no box to go in`:''}`};
+$('pastescript').onclick=()=>{if(!pages.length)return toast('Open the chapter the script belongs to first.');psInfo();$('pastedlg').showModal();$('pstxt').focus()};
+$('pstxt').oninput=psInfo;$('pscancel').onclick=()=>$('pastedlg').close();
+$('psok').onclick=()=>{const {plan,left}=pastePlan($('pstxt').value);if(!plan.length)return toast('No lines matched a box. Draw the boxes first, or use Find bubbles.',4000);
+  groupEdit(plan.map(p=>p[0]),'Pasted a script',()=>plan.forEach(([r,w])=>{r.txt=w.txt;r.manual=true;if(w.kind)r.style=w.kind;if(r.stage==='todo')r.stage=''}));
+  pages.forEach(p=>p.regs.forEach(r=>syncBox(r)));list();render();pageBar();$('pastedlg').close();
+  toast(`Filled ${plan.length} box${plan.length>1?'es':''} from the script.${left?` ${left} line${left>1?'s':''} had no box.`:''}`,5000)};
+/* the other way: the chapter's translations as a marked script */
+function scriptMarked(){const M=marksOf(),out=[];pages.forEach((p,i)=>{out.push(`Page ${i+1}`);p.regs.filter(r=>!r.stamp&&r.txt.trim()).forEach(r=>out.push(markWrap(M[r.style||'normal'],r.txt.replace(/\s*\n\s*/g,' '))));out.push('')});return out.join('\n')}
+$('scriptmk').onclick=()=>{if(!pages.length)return toast('Nothing to export yet.');save(new Blob([scriptMarked()],{type:'text/plain;charset=utf-8'}),chName()+' - marked script.txt')};
 /* ---------- stamps: images a series reuses, like a translated title logo. The image is kept in the database as 'stamp:<id>';
    a placed stamp is a free box with r.stamp set, so it moves, resizes, undoes and exports like any other box ---------- */
 const stampBm=new Map(),stampP=new Map();
@@ -3025,7 +3193,7 @@ function teamSeries(snap){for(const ch of snap.docChanges()){const id=ch.doc.id;
     if(ch.type==='removed'){if(s&&s.team){LIB.series=LIB.series.filter(x=>x!==s);const u=team.subs.get(id);if(u){u();team.subs.delete(id)}if(curS===id){curS=curC=null;pages=[];reset();pageBar();crumbs();toast('This team series was deleted.',5000)}}continue}
     const d=ch.doc.data()||{};if(!s){s={id,team:true,chapters:[]};LIB.series.push(s)}s.team=true;
     const editing=curS===id&&['gloss','snotes'].includes((document.activeElement||{}).id);
-    for(const k of ['title','src','tgt','roles','presets','created','updated','cover'])if(d[k]!==undefined)s[k]=d[k];if(!editing){s.gloss=d.gloss||'';s.notes=d.notes||''}
+    for(const k of ['title','src','tgt','roles','presets','markers','created','updated','cover'])if(d[k]!==undefined)s[k]=d[k];if(!editing){s.gloss=d.gloss||'';s.notes=d.notes||''}
     team.synced.set('s:'+id,cj(metaOf(s)));
     if(!team.subs.has(id))team.subs.set(id,TDB.collection(`series/${id}/chapters`).onSnapshot(cs=>teamChapters(s,cs),teamErr));
     if(curS===id&&!editing){seriesFields();crumbs()}}
@@ -3036,7 +3204,7 @@ function teamChapters(s,cs){for(const ch of cs.docChanges()){const id=ch.doc.id;
     Object.assign(c,{num:d.num??c.num,title:d.title||'',assign:d.assign||{},plist:d.plist||[],updated:d.updated||c.updated},d.stats||{});c.pages=(d.plist||[]).length;
     team.synced.set('cm:'+id,cj(cmetaOf(c)))}
   DB.put('lib',LIB).catch(()=>{});if(!$('lib').hidden)libRender()}
-const metaOf=s=>({title:s.title,src:s.src,tgt:s.tgt,gloss:s.gloss||'',notes:s.notes||'',presets:s.presets||{},roles:s.roles||{}});
+const metaOf=s=>({title:s.title,src:s.src,tgt:s.tgt,gloss:s.gloss||'',notes:s.notes||'',presets:s.presets||{},markers:s.markers||{},roles:s.roles||{}});
 const cmetaOf=c=>({num:c.num,title:c.title||'',assign:c.assign||{}});
 /* titles, glossary, notes, styles, roles and assignments: written when they change */
 function teamPushMeta(){if(!team.on||team.ro)return;for(const s of LIB.series){if(!s.team)continue;const m=cj(metaOf(s));

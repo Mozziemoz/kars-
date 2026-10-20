@@ -130,6 +130,17 @@ http.createServer(async (req, res) => {
         }
         return json(res, o, r.ok ? 200 : r.status);
       }
+      if (url.pathname === '/api/iopaint' && req.method === 'POST') {  // relays Tahrir's cleaning to IOPaint on this PC, which may not accept requests from web pages
+        const b = JSON.parse(await readBody(req)), base = new URL(String(b.base || 'http://127.0.0.1:8080'));
+        if (!/^https?:$/.test(base.protocol)) return json(res, { error: 'The IOPaint address must start with http:// or https://' }, 400);
+        let r;
+        try { r = await fetch(base.href.replace(/\/+$/, '') + '/api/v1/inpaint', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image: b.image, mask: b.mask }), signal: AbortSignal.timeout(300000) }); }
+        catch (e) { return json(res, { error: `Could not reach IOPaint at ${base.origin}. Is it running? (${e.cause?.code || e.message})` }, 502); }
+        const buf = Buffer.from(await r.arrayBuffer());
+        if (!r.ok) return json(res, { error: `IOPaint answered ${r.status}: ${buf.toString('utf8').slice(0, 200)}` }, r.status);
+        res.writeHead(200, { 'content-type': r.headers.get('content-type') || 'image/png' });
+        return res.end(buf);
+      }
       return send(res, 404, 'Not found');
     }
     if (url.pathname === '/' || url.pathname === '/kars.html') {
