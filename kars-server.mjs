@@ -87,7 +87,7 @@ const send = (res, code, text) => { res.writeHead(code, { 'content-type': 'text/
 const json = (res, obj, code = 200) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
 const readBody = req => new Promise((ok, no) => {
   let size = 0; const parts = [];
-  req.on('data', c => { size += c.length; if (size > 25e6) { no(new Error('too large')); req.destroy(); } else parts.push(c); });
+  req.on('data', c => { size += c.length; if (size > 120e6) { no(new Error('too large')); req.destroy(); } else parts.push(c); });
   req.on('end', () => ok(Buffer.concat(parts).toString('utf8')));
   req.on('error', no);
 });
@@ -134,7 +134,8 @@ http.createServer(async (req, res) => {
         const b = JSON.parse(await readBody(req)), base = new URL(String(b.base || 'http://127.0.0.1:8080'));
         if (!/^https?:$/.test(base.protocol)) return json(res, { error: 'The IOPaint address must start with http:// or https://' }, 400);
         let r;
-        try { r = await fetch(base.href.replace(/\/+$/, '') + '/api/v1/inpaint', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image: b.image, mask: b.mask }), signal: AbortSignal.timeout(300000) }); }
+        const up = b.op === 'upscale', body = up ? { name: 'RealESRGAN', image: b.image, clicks: [], scale: Number(b.scale) || 2 } : { image: b.image, mask: b.mask };
+        try { r = await fetch(base.href.replace(/\/+$/, '') + (up ? '/api/v1/run_plugin_gen_image' : '/api/v1/inpaint'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(600000) }); }
         catch (e) { return json(res, { error: `Could not reach IOPaint at ${base.origin}. Is it running? (${e.cause?.code || e.message})` }, 502); }
         const buf = Buffer.from(await r.arrayBuffer());
         if (!r.ok) return json(res, { error: `IOPaint answered ${r.status}: ${buf.toString('utf8').slice(0, 200)}` }, r.status);
@@ -157,7 +158,14 @@ http.createServer(async (req, res) => {
   const check = spawn('claude', ['--version'], { shell: WIN });
   check.on('error', () => console.log('Warning: Claude Code was not found. Install it with: npm install -g @anthropic-ai/claude-code, then run "claude" once to sign in.'));
   if (!process.env.KARS_NO_OPEN) {
-    const [cmd, args] = WIN ? ['cmd', ['/c', 'start', '', link]] : process.platform === 'darwin' ? ['open', [link]] : ['xdg-open', [link]];
-    spawn(cmd, args, { stdio: 'ignore', detached: true }).on('error', () => {}).unref();
+    // KARS opens in its own app window (no tabs or address bar), through Edge on Windows or Chrome on a Mac; KARS_BROWSER=default uses a normal browser tab
+    const app = process.env.KARS_BROWSER !== 'default';
+    const plain = () => { const [c, a] = WIN ? ['cmd', ['/c', 'start', '', link]] : process.platform === 'darwin' ? ['open', [link]] : ['xdg-open', [link]]; spawn(c, a, { stdio: 'ignore', detached: true }).on('error', () => {}).unref(); };
+    if (!app) plain();
+    else {
+      const [cmd, args] = WIN ? ['cmd', ['/c', 'start', '', 'msedge', `--app=${link}`]] : process.platform === 'darwin' ? ['open', ['-na', 'Google Chrome', '--args', `--app=${link}`]] : ['google-chrome', [`--app=${link}`]];
+      const p = spawn(cmd, args, { stdio: 'ignore', detached: true });
+      p.on('error', plain); p.on('exit', code => { if (code) plain(); }); p.unref();
+    }
   }
 });

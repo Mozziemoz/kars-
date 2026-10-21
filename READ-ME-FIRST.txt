@@ -10,6 +10,15 @@ WINDOWS (first time)
 3. KARS opens in your browser at http://localhost:8787
    Keep the black window open while you work. Close it to stop KARS.
 
+DESKTOP ICON (Windows)
+   Double-click  make-desktop-shortcut.bat  once. A KARS icon appears on your desktop;
+   it starts KARS in its own window, like a normal program.
+
+TAHRIR AND UPSCALING WITH IOPAINT (free, optional)
+   Install Python, then in a terminal:  pip install iopaint
+   Start it before KARS:  iopaint start --model=lama --port=8080 --enable-realesrgan
+   In KARS: Settings > Tahrir > Clean the art with: IOPaint.
+
 WINDOWS (every time after that)
    Double-click  start-kars.bat
 
@@ -27,7 +36,7 @@ TRANSLATION ENGINES (Settings tab)
 HOW TO USE
 1. Library > New series > New chapter
 2. Drop the chapter's page images (or a ZIP/CBZ) onto the page area
-3. Find bubbles, then Translate page (or Translate chapter)
+3. Find bubbles (paint tools), then Translate page (or Translate chapter) at the top of the Boxes panel
 4. Check each box on the right, then Export page / Export chapter
    "Side by side" shows the original and translation together.
 
