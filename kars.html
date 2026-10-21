@@ -1659,8 +1659,8 @@ Object.values(F).forEach(({f,w})=>document.fonts.load(`${w} 20px ${f}`).then(()=
 /* ---------- history: one stack per box, plus one per page for adding/deleting boxes ---------- */
 let G={u:[],r:[]};  /* the history of the current page: every edit in the order it happened (each page keeps its own) */
 /* a box's undoable state; true/false and null are written out, so undo can turn an option back off that was never set */
-const bs=r=>JSON.stringify({hide:!!r.hide,src:r.src,txt:r.txt,font:r.font,style:r.style,match:r.match||null,italic:!!r.italic,outline:!!r.outline,st:r.st||{},size:r.size??null,...(r.ink?{ink:r.ink}:{}),x:r.x,y:r.y,w:r.w,h:r.h,note:r.note||'',stage:r.stage||'',healed:!!r.healed});
-const geo=r=>[r.x,r.y,r.w,r.h].join();
+const bs=r=>JSON.stringify({shape:r.shape||'rect',hide:!!r.hide,src:r.src,txt:r.txt,font:r.font,style:r.style,match:r.match||null,italic:!!r.italic,outline:!!r.outline,st:r.st||{},size:r.size??null,...(r.ink?{ink:r.ink}:{}),x:r.x,y:r.y,w:r.w,h:r.h,note:r.note||'',stage:r.stage||'',healed:!!r.healed});
+const geo=r=>[r.x,r.y,r.w,r.h,r.shape||'rect'].join();
 function logG(e,pg){const g=pg?pg.G:G;e.at=Date.now();g.u.push(e);if(g.u.length>300)g.u.shift();g.r=[];histUI()}
 const BOXLAB={n:'Edited the note',s:'Edited the original',t:'Edited the translation',auto:'Translated',st:'Changed the text style'};
 /* note a box's state before a change; quick runs of the same change (typing, a slider) become one step */
@@ -1727,7 +1727,7 @@ $('undo').onclick=undo;$('redo').onclick=redo;
 const DB=(()=>{let dbp;const open=()=>dbp||(dbp=new Promise((ok,no)=>{const q=indexedDB.open('kars',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error)}));
   const run=(mode,fn)=>open().then(db=>new Promise((ok,no)=>{const t=db.transaction('kv',mode),rq=fn(t.objectStore('kv'));t.oncomplete=()=>ok(rq&&rq.result);t.onerror=t.onabort=()=>no(t.error)}));
   return{get:k=>run('readonly',s=>s.get(k)),put:(k,v)=>run('readwrite',s=>s.put(v,k)),del:k=>run('readwrite',s=>s.delete(k)),clear:()=>run('readwrite',s=>s.clear())}})();
-const KEEP=['hide','lock','z','note','stage','lay','healed','fold','id','x','y','w','h','src','txt','font','style','match','italic','outline','lang','status','st','manual','free','ink','size','stamp'];
+const KEEP=['shape','hide','lock','z','note','stage','lay','healed','fold','id','x','y','w','h','src','txt','font','style','match','italic','outline','lang','status','st','manual','free','ink','size','stamp'];
 const projState=()=>({v:1,uid,cur,pages:pages.map(p=>({id:p.id,name:p.name,type:p.blob.type,lang:p.lang||null,hasPaint:!!p.hasPaint,boxes:p.regs.map(r=>Object.fromEntries(KEEP.map(k=>[k,r[k]])))}))});
 let saveT=0,restoring=false,saveWarned=false,ready=false;  /* ready: nothing is saved until the last session has been restored */
 function scheduleSave(){if(restoring||!ready)return;clearTimeout(saveT);$('saved').textContent=pages.length?'Saving…':'';$('saved').dataset.state=pages.length?'saving':'';saveT=setTimeout(saveNow,800)}
@@ -2469,6 +2469,8 @@ function prep(r,first){if(r.free){r.patch=null;r.keep=null;r.lay=null;r.flat=fal
   else{for(let p=0;p<N;p++)if(T[p])D[p]=1;
     for(let pass=2;pass<=3;pass++)for(let p=0;p<N;p++)if(!D[p]&&inner(p)){const x=p%W,g=q=>D[q]&&D[q]<pass;
       if((x>0&&g(p-1))||(x<W-1&&g(p+1))||(p>=W&&g(p-W))||(p<N-W&&g(p+W)))D[p]=pass}}
+  /* the cleaned area stays inside the box's shape (grown a little for lettering, so letters touching the edge go too) */
+  if(r.shape&&r.shape!=='rect'){const g=r.flat?0:3;for(let p=0;p<N;p++)if(D[p]&&!inShape(r,X+p%W+.5,Y+(p/W|0)+.5,g))D[p]=0}
   for(let p=0;p<N;p++)if(D[p]){const k=p*4;o[k]=r.bg[0];o[k+1]=r.bg[1];o[k+2]=r.bg[2];o[k+3]=D[p]===3?128:255}
   pctx.putImageData(out,0,0);r.patch=pc;r.px=X;r.py=Y;r.pw=W;
   /* keep: the bubble's inside and its lettering. Reading uses only these pixels, so the outline is never read as a "|" */
@@ -3853,6 +3855,10 @@ $('emptylib').onclick=()=>{libSer=curS;showScreen('lib')};
 /* ---------- box shapes: rectangle, rounded, oval, diamond. The shape is drawn on the page, masks what is read, and the text fits inside it ---------- */
 const SHAPE_FIT={round:.94,oval:.72,diamond:.56};
 let boxShape='rect';try{boxShape=localStorage.getItem('kars_shape')||'rect'}catch(e){}
+/* is a page point inside the box's shape, grown by g pixels */
+function inShape(r,px,py,g=0){const w=r.w/2+g,h=r.h/2+g,dx=Math.abs(px-(r.x+r.w/2)),dy=Math.abs(py-(r.y+r.h/2));if(dx>w||dy>h)return false;
+  if(r.shape==='oval')return(dx/w)**2+(dy/h)**2<=1;if(r.shape==='diamond')return dx/w+dy/h<=1;
+  if(r.shape==='round'){const q=Math.min(r.w,r.h)*.22,ex=dx-(w-q),ey=dy-(h-q);return ex<=0||ey<=0||ex*ex+ey*ey<=q*q}return true}
 function shapePath(x,X,Y,w,h,sh){x.beginPath();if(sh==='oval')x.ellipse(X+w/2,Y+h/2,w/2,h/2,0,0,Math.PI*2);
   else if(sh==='diamond'){x.moveTo(X+w/2,Y);x.lineTo(X+w,Y+h/2);x.lineTo(X+w/2,Y+h);x.lineTo(X,Y+h/2);x.closePath()}
   else if(sh==='round'){const q=Math.min(w,h)*.22;x.roundRect?x.roundRect(X,Y,w,h,q):x.rect(X,Y,w,h)}else x.rect(X,Y,w,h)}
@@ -3871,7 +3877,7 @@ const SHAPES=['rect','round','oval','diamond'],SHAPE_NAME={rect:'Rectangle',roun
 function shapeUI(){const r=regs[sel],cur=r?(r.shape||'rect'):boxShape,b=$('pshape');if(!b)return;
   b.innerHTML=`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">${SHAPE_ICON[cur]}</svg>`;b.dataset.shape=cur;b.setAttribute('aria-label','Box shape: '+SHAPE_NAME[cur])}
 $('pshape').onclick=()=>{const r=regs[sel],cur=r?(r.shape||'rect'):boxShape,sh=SHAPES[(SHAPES.indexOf(cur)+1)%SHAPES.length];boxShape=sh;try{localStorage.setItem('kars_shape',sh)}catch(e){}
-  if(r){checkpoint(r,null,'Changed the box shape');r.shape=sh;render()}shapeUI();toast(`${SHAPE_NAME[sh]}${r?` · box ${sel+1}`:''}. New boxes use this shape too.`,2000)};
+  if(r){checkpoint(r,null,'Changed the box shape');const was=boxArea(r);r.shape=sh;if(!r.free)prep(r);syncBox(r);renderBox(was,r);if(!r.free&&r.src&&!r.manual)setStatus(r,`Now ${SHAPE_NAME[sh].toLowerCase()}: the cleaning follows the new shape. Press Read & translate if the text should be read again inside it.`)}shapeUI();toast(`${SHAPE_NAME[sh]}${r?` · box ${sel+1}`:''}. New boxes use this shape too.`,2000)};
 document.addEventListener('pointerup',()=>setTimeout(shapeUI,0));shapeUI();
 /* ---------- the right panel: drag its left edge to resize it, and a text size for everything in it ---------- */
 (()=>{const A=document.querySelector('aside');if(!A)return;const g=document.createElement('div');g.className='agrip';g.title='Drag to resize the panel. Double-click to reset.';A.prepend(g);
