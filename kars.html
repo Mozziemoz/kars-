@@ -1237,6 +1237,17 @@ aside{position:relative}
 .prow.trow .mk{grid-row:1/3;width:52px;height:34px;box-sizing:border-box;text-align:center;font:700 14px/1 var(--mono);padding:0 4px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
 .prow.trow b{grid-column:2}.prow.trow select{grid-column:2;height:28px;font-size:12px;min-width:0;width:100%}.prow.trow small{grid-column:2}.prow.trow .grp{grid-column:3;grid-row:1/4}
 .pastedlg{width:min(560px,calc(100vw - 32px))}.pastedlg textarea{width:100%;box-sizing:border-box;font-size:14px;min-height:220px}
+
+/* ==== Layers window ==== */
+.laywin{width:286px;top:140px}
+.llist{overflow:auto;overscroll-behavior:contain;padding:4px}
+.lrow{display:flex;align-items:center;gap:2px;min-height:32px;padding:0 2px;border-radius:7px}
+.lrow.box{padding-left:14px}.lrow.sel{background:color-mix(in srgb,var(--accent) 14%,transparent)}.lrow.off .lname{opacity:.45}
+.lrow.grp{border-top:1px solid var(--line);margin-top:2px}.lrow.grp:first-child{border-top:0;margin-top:0}
+.lb{width:26px;height:26px;min-width:0;padding:0;display:inline-flex;align-items:center;justify-content:center;border-color:transparent;background:transparent;box-shadow:none;color:var(--mute)}
+.lb svg.i{width:15px;height:15px}.lb[aria-pressed=true]{color:var(--ink)}
+.lname{flex:1;min-width:0;height:28px;display:flex;align-items:center;gap:6px;padding:0 4px;border:0;background:none;box-shadow:none;font-size:12.5px;color:var(--ink);text-align:start;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;justify-content:flex-start}
+.lname.g{font-weight:600}.lname .no{font:600 10.5px/1 var(--mono);padding:3px 4px;border-radius:3px;background:var(--sunk);color:var(--ink2)}.lname small{margin-inline-start:auto;font-size:10.5px;color:var(--mute)}
 </style>
 </head>
 <body>
@@ -1331,6 +1342,11 @@ aside{position:relative}
         <ol id="hlist" class="hlist"></ol>
       </section>
       <button id="histfab" class="paintfab" data-win="hist" title="Show the history. Drag to move." aria-label="Show the history" hidden></button>
+      <section id="laywin" class="histwin laywin" data-win="layers" aria-label="Layers" hidden>
+        <div class="fwbar" title="Drag to move"><b>Layers</b><small id="lcount"></small><button id="lhide" title="Hide the layers (Y)" aria-label="Hide the layers"></button></div>
+        <div id="llist" class="llist"></div>
+      </section>
+      <button id="layfab" class="paintfab" data-win="layers" title="Show the layers (Y). Drag to move." aria-label="Show the layers" hidden></button>
       <svg id="wires" class="wires" aria-hidden="true"></svg>
       <button id="wirecut" class="wirecut" title="Disconnect the windows" aria-label="Disconnect the windows" hidden></button>
     </div>
@@ -1588,7 +1604,7 @@ Object.values(F).forEach(({f,w})=>document.fonts.load(`${w} 20px ${f}`).then(()=
 /* ---------- history: one stack per box, plus one per page for adding/deleting boxes ---------- */
 let G={u:[],r:[]};  /* the history of the current page: every edit in the order it happened (each page keeps its own) */
 /* a box's undoable state; true/false and null are written out, so undo can turn an option back off that was never set */
-const bs=r=>JSON.stringify({src:r.src,txt:r.txt,font:r.font,style:r.style,match:r.match||null,italic:!!r.italic,outline:!!r.outline,st:r.st||{},size:r.size??null,...(r.ink?{ink:r.ink}:{}),x:r.x,y:r.y,w:r.w,h:r.h,note:r.note||'',stage:r.stage||'',healed:!!r.healed});
+const bs=r=>JSON.stringify({hide:!!r.hide,src:r.src,txt:r.txt,font:r.font,style:r.style,match:r.match||null,italic:!!r.italic,outline:!!r.outline,st:r.st||{},size:r.size??null,...(r.ink?{ink:r.ink}:{}),x:r.x,y:r.y,w:r.w,h:r.h,note:r.note||'',stage:r.stage||'',healed:!!r.healed});
 const geo=r=>[r.x,r.y,r.w,r.h].join();
 function logG(e,pg){const g=pg?pg.G:G;e.at=Date.now();g.u.push(e);if(g.u.length>300)g.u.shift();g.r=[];histUI()}
 const BOXLAB={n:'Edited the note',s:'Edited the original',t:'Edited the translation',auto:'Translated',st:'Changed the text style'};
@@ -1607,7 +1623,7 @@ function syncBox(r){const q=k=>inCard(r,`[data-${k}="${r.id}"]`);if(!q('t'))retu
 /* show a box's text style in its panel */
 function syncStyle(r){const P=inCard(r,`[data-styl="${r.id}"]`);if(!P)return;const st=stOf(r),hex=c=>'#'+c.map(v=>Math.round(v).toString(16).padStart(2,'0')).join('');
   P.querySelectorAll('[data-k]').forEach(el=>{const k=el.dataset.k;if(el.type==='checkbox')el.checked=!!st[k];
-    else if(el.type==='color')el.value=st[k]||(k==='color'?hex(r.ink||[0,0,0]):k==='ocolor'?autoOutline(r,.299*(r.ink||[0,0,0])[0]+.587*(r.ink||[0,0,0])[1]+.114*(r.ink||[0,0,0])[2]>140):(.299*(r.ink||[0,0,0])[0]+.587*(r.ink||[0,0,0])[1]+.114*(r.ink||[0,0,0])[2]>140?'#111111':'#ffffff'));
+    else if(el.type==='color')el.value=st[k]||(k==='oc2'||k==='shc'?'#000000':k==='color'?hex(r.ink||[0,0,0]):k==='ocolor'?autoOutline(r,.299*(r.ink||[0,0,0])[0]+.587*(r.ink||[0,0,0])[1]+.114*(r.ink||[0,0,0])[2]>140):(.299*(r.ink||[0,0,0])[0]+.587*(r.ink||[0,0,0])[1]+.114*(r.ink||[0,0,0])[2]>140?'#111111':'#ffffff'));
     else el.value=st[k]});
   P.querySelectorAll('[data-num]').forEach(el=>{if(document.activeElement!==el)el.value=st[el.dataset.num]});
   const fh=P.querySelector('[data-fh]');if(fh){let L=null;try{L=r.txt.trim()&&st.fit&&layout(r,lx)}catch(e){}fh.hidden=!(L&&L.shrink<.97)}
@@ -1641,6 +1657,7 @@ addEventListener('keydown',e=>{const k=e.key.toLowerCase(),a=document.activeElem
   else if(k==='+'||k==='='){zoomBy(1.25)}else if(k==='-'){zoomBy(.8)}else if(k==='0'){fit()}else if(k==='v'&&loaded)setView(!showOrig)
   else if(loaded&&!e.altKey&&k==='h')showTools(paintHidden())
   else if(loaded&&!e.altKey&&k==='l')setTarget(paintOnImage?'layer':'image')
+  else if(loaded&&!e.altKey&&k==='y')showWin('layers',wins().layers.hidden)
   else if(loaded&&!e.altKey&&({a:'select',b:'brush',e:'eraser',j:'heal',w:'tahrir',i:'pick',t:'text'})[k])setTool(({a:'select',b:'brush',e:'eraser',j:'heal',w:'tahrir',i:'pick',t:'text'})[k])
   else if(k===' '&&loaded){e.preventDefault();if(!spaceDown){spaceDown=true;if(!drag)cv.style.cursor='grab'}}});
 addEventListener('keyup',e=>{if(e.key===' '){spaceDown=false;if(!drag)cv.style.cursor='crosshair'}});
@@ -1650,7 +1667,7 @@ $('undo').onclick=undo;$('redo').onclick=redo;
 const DB=(()=>{let dbp;const open=()=>dbp||(dbp=new Promise((ok,no)=>{const q=indexedDB.open('kars',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error)}));
   const run=(mode,fn)=>open().then(db=>new Promise((ok,no)=>{const t=db.transaction('kv',mode),rq=fn(t.objectStore('kv'));t.oncomplete=()=>ok(rq&&rq.result);t.onerror=t.onabort=()=>no(t.error)}));
   return{get:k=>run('readonly',s=>s.get(k)),put:(k,v)=>run('readwrite',s=>s.put(v,k)),del:k=>run('readwrite',s=>s.delete(k)),clear:()=>run('readwrite',s=>s.clear())}})();
-const KEEP=['note','stage','lay','healed','fold','id','x','y','w','h','src','txt','font','style','match','italic','outline','lang','status','st','manual','free','ink','size','stamp'];
+const KEEP=['hide','lock','z','note','stage','lay','healed','fold','id','x','y','w','h','src','txt','font','style','match','italic','outline','lang','status','st','manual','free','ink','size','stamp'];
 const projState=()=>({v:1,uid,cur,pages:pages.map(p=>({id:p.id,name:p.name,type:p.blob.type,lang:p.lang||null,hasPaint:!!p.hasPaint,boxes:p.regs.map(r=>Object.fromEntries(KEEP.map(k=>[k,r[k]])))}))});
 let saveT=0,restoring=false,saveWarned=false,ready=false;  /* ready: nothing is saved until the last session has been restored */
 function scheduleSave(){if(restoring||!ready)return;clearTimeout(saveT);$('saved').textContent=pages.length?'Saving…':'';$('saved').dataset.state=pages.length?'saving':'';saveT=setTimeout(saveNow,800)}
@@ -1901,7 +1918,7 @@ function frame(){raf=0;if(!gl||!loaded||exporting||gl.isContextLost())return;
   /* boxes: a white halo under a blue outline (green once translated), dashed unless selected */
   gl.useProgram(P.col.p);
   const stroke=(r,lw)=>{if(r.shape&&r.shape!=="rect")return strokeShape(r,lw);const v=lw/2;quads([[r.x-v,r.y-v,r.x+r.w+v,r.y+v,0,0,r.w,0],[r.x-v,r.y+r.h-v,r.x+r.w+v,r.y+r.h+v,0,0,r.w,0],[r.x-v,r.y,r.x+v,r.y+r.h,0,0,0,r.h],[r.x+r.w-v,r.y,r.x+r.w+v,r.y+r.h,0,0,0,r.h]])};
-  regs.forEach((r,i)=>{const on=i===sel;gl.uniform2f(P.col.u.u_d,on?0:6*k,4*k);C(on?pal.selHalo:pal.halo);stroke(r,(on?6:3)*k);
+  regs.forEach((r,i)=>{if(r.hide)return;const on=i===sel;gl.uniform2f(P.col.u.u_d,on?0:6*k,4*k);C(on?pal.selHalo:pal.halo);stroke(r,(on?6:3)*k);
     C(r.txt.trim()&&!on?pal.done:pal.line,1);stroke(r,(on?2.5:1)*k)});
   gl.uniform2f(P.col.u.u_d,0,0);
   /* corner brackets: breathing while a box is being read or translated (the AI scan), still under reduced motion */
@@ -1939,6 +1956,10 @@ function showTools(on){showWin('tools',on)}
 function setTarget(t){paintOnImage=t==='image';$('pOnLayer').setAttribute('aria-pressed',!paintOnImage);$('pOnImage').setAttribute('aria-pressed',paintOnImage);
   $$('#paintbar [data-tool=eraser]')[0].title=paintOnImage?'Eraser: wipes the page to white (E)':'Eraser: removes your paint (E)';savePaintPrefs()}
 $('pOnLayer').onclick=()=>setTarget('layer');$('pOnImage').onclick=()=>setTarget('image');
+IC.layers='<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>';IC.eye='<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>';
+IC.eyeoff='<path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7c1.7 0 3.2-.5 4.5-1.2"/>';
+IC.lock='<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>';IC.unlock='<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-2"/>';
+IC.up='<path d="m6 15 6-6 6 6"/>';IC.down='<path d="m6 9 6 6 6-6"/>';
 IC.wand='<path d="m4 20 11-11"/><path d="m13 7 2 2"/><path d="M17 3v3M15.5 4.5h3M20 9v2M19 10h2M12 3v1.5M11.25 3.75h1.5"/>';
 const TOOL_ICON={select:'cursor',brush:'brush',eraser:'eraser',heal:'heal',tahrir:'wand',pick:'pick',text:'textbox'};
 $$('#paintbar [data-tool]').forEach(b=>{b.innerHTML=ic(TOOL_ICON[b.dataset.tool]);b.onclick=()=>setTool(b.dataset.tool)});$('detect').innerHTML=ic('scan');
@@ -1955,23 +1976,23 @@ const savePaintPrefs=()=>{try{localStorage.setItem('kars_paint',JSON.stringify({
 /* ---------- floating windows: the paint tools and the history. Each folds into a round icon, both move by dragging
    (the icons too), and a wire drawn from one dot to the other joins them so they move together. ---------- */
 var WS;
-const WIN={tools:{box:'paintbar',fab:'paintfab',icon:'palette'},hist:{box:'histwin',fab:'histfab',icon:'history'}};
+const WIN={tools:{box:'paintbar',fab:'paintfab',icon:'palette'},hist:{box:'histwin',fab:'histfab',icon:'history'},layers:{box:'laywin',fab:'layfab',icon:'layers'}};
 function wins(){if(WS)return WS;let s={},old={},h=false;
   try{s=JSON.parse(localStorage.getItem('kars_wins')||'{}')||{};old=JSON.parse(localStorage.getItem('kars_paint')||'{}');h=localStorage.getItem('kars_painthide')==='1'}catch(e){}
-  WS={tools:{x:old.x??16,y:old.y??16,hidden:h},hist:{x:16,y:72,hidden:true},link:false};
+  WS={tools:{x:old.x??16,y:old.y??16,hidden:h},hist:{x:16,y:72,hidden:true},layers:{x:16,y:140,hidden:true},link:false};
   for(const n in WIN)if(s[n])Object.assign(WS[n],s[n]);WS.link=!!s.link;return WS}
 const saveWins=()=>{try{localStorage.setItem('kars_wins',JSON.stringify(WS))}catch(e){}};
 const winEl=n=>$(wins()[n].hidden?WIN[n].fab:WIN[n].box);
 function winUI(){const w=wins();for(const n in WIN){$(WIN[n].box).hidden=!loaded||w[n].hidden;$(WIN[n].fab).hidden=!loaded||!w[n].hidden}
   $('phist').setAttribute('aria-pressed',!w.hist.hidden);placeWins()}
 function showWin(n,on){const w=wins();w[n].hidden=!on;saveWins();if(n==='tools'&&!on&&tool!=='select')setTool('select');
-  uiState();if(n==='hist'&&on)histUI();const el=winEl(n);(on?el.querySelector('[aria-pressed=true]')||el.querySelector('button'):el)?.focus()}
+  uiState();if(n==='hist'&&on)histUI();if(n==='layers'&&on)layUI();const el=winEl(n);(on?el.querySelector('[aria-pressed=true]')||el.querySelector('button'):el)?.focus()}
 /* keep each window inside the stage */
 function placeWins(){const st=$('stage'),w=wins();
   for(const n in WIN){const el=winEl(n),p=w[n];if(loaded&&!el.hidden){p.x=Math.max(0,Math.min(p.x,st.clientWidth-el.offsetWidth-8));p.y=Math.max(0,Math.min(p.y,st.clientHeight-el.offsetHeight))}
     for(const id of [WIN[n].box,WIN[n].fab]){$(id).style.left=p.x+'px';$(id).style.top=p.y+'px'}}
   wireDraw()}
-function moveBy(n,dx,dy){const w=wins(),st=$('stage'),group=w.link?Object.keys(WIN):[n];
+function moveBy(n,dx,dy){const w=wins(),st=$('stage'),group=w.link&&n!=='layers'?['tools','hist']:[n];
   for(const m of group){const el=winEl(m),p=w[m];dx=Math.max(-p.x,Math.min(dx,st.clientWidth-el.offsetWidth-8-p.x));dy=Math.max(-p.y,Math.min(dy,st.clientHeight-el.offsetHeight-p.y))}
   for(const m of group){w[m].x+=dx;w[m].y+=dy}placeWins()}
 /* drag a window by its handle; a press that doesn't move counts as a click */
@@ -1979,12 +2000,33 @@ function dragWin(handle,n,onClick){handle.addEventListener('pointerdown',e=>{con
   e.preventDefault();let lx=e.clientX,ly=e.clientY,moved=false;const x0=lx,y0=ly;handle.setPointerCapture(e.pointerId);
   handle.onpointermove=m=>{if(!moved&&Math.hypot(m.clientX-x0,m.clientY-y0)<4)return;moved=true;handle.classList.add('dragging');moveBy(n,m.clientX-lx,m.clientY-ly);lx=m.clientX;ly=m.clientY};
   handle.onpointerup=handle.onpointercancel=u=>{handle.onpointermove=handle.onpointerup=handle.onpointercancel=null;handle.classList.remove('dragging');if(moved)saveWins();else if(u.type==='pointerup'&&onClick)onClick()}})}
-for(const n in WIN){const f=$(WIN[n].fab);f.innerHTML=ic(WIN[n].icon)+`<span class="port" data-port="${n}" title="Drag this dot to the other window to wire them together"></span>`;
+for(const n in WIN){const f=$(WIN[n].fab);f.innerHTML=ic(WIN[n].icon)+(n==='layers'?'':`<span class="port" data-port="${n}" title="Drag this dot to the other window to wire them together"></span>`);
   dragWin(f,n,()=>showWin(n,true));f.onclick=e=>{if(e.detail===0)showWin(n,true)}}  /* detail 0: Enter or Space */
-dragWin($('paintbar').querySelector('.pgrip'),'tools');dragWin($('histwin').querySelector('.fwbar'),'hist');
+dragWin($('paintbar').querySelector('.pgrip'),'tools');dragWin($('histwin').querySelector('.fwbar'),'hist');dragWin($('laywin').querySelector('.fwbar'),'layers');
+$('lhide').innerHTML=ic('hide');$('lhide').onclick=()=>showWin('layers',false);
 $('phide').innerHTML=ic('hide');$('phide').onclick=()=>showWin('tools',false);
 $('hhide').innerHTML=ic('hide');$('hhide').onclick=()=>showWin('hist',false);
 $('phist').innerHTML=ic('history');$('phist').onclick=()=>showWin('hist',wins().hist.hidden);
+/* the Layers window: like Photoshop's, front at the top. Groups and boxes can be hidden (hidden layers are left out of exports too),
+   boxes can be locked so a click on the page passes through them, and moved up or down to change what covers what */
+function layUI(){const L=$('llist');if(!L||!WS||WS.layers.hidden)return;const Z=zs().reverse(),pg=pages[cur]||{};
+  const eye=(on,attr,lab)=>`<button class="icon lb" ${attr} aria-pressed="${!on}" title="${on?'Show':'Hide'} ${lab}" aria-label="${on?'Show':'Hide'} ${lab}">${ic(on?'eyeoff':'eye')}</button>`;
+  const row=r=>{const i=regs.indexOf(r),name=r.stamp?'Stamp':(r.txt.trim()||'(empty)').replace(/\s+/g,' ').slice(0,28);
+    return`<div class="lrow box${i===sel?' sel':''}${r.hide?' off':''}" data-lb="${r.id}">${eye(!!r.hide,`data-eye="${r.id}"`,'box '+(i+1))}<button class="icon lb" data-lock="${r.id}" aria-pressed="${!!r.lock}" title="${r.lock?'Unlock':'Lock'}: a locked box can't be moved or picked on the page" aria-label="${r.lock?'Unlock':'Lock'} box ${i+1}">${ic(r.lock?'lock':'unlock')}</button>
+      <button class="lname" data-pickl="${r.id}" dir="auto"><span class="no">${i+1}</span>${escH(name)}<small>${r.stamp?'':STYLE_NAME[r.style||'normal']||''}</small></button>
+      <button class="icon lb" data-zup="${r.id}" title="Move up: in front of the box above" aria-label="Move box ${i+1} up">${ic('up')}</button><button class="icon lb" data-zdn="${r.id}" title="Move down: behind the box below" aria-label="Move box ${i+1} down">${ic('down')}</button></div>`};
+  const grp=(k,lab,kids)=>`<div class="lrow grp${LH[k]?' off':''}">${eye(LH[k],`data-geye="${k}"`,lab)}<span class="lname g">${lab}</span></div>${kids}`;
+  const T=Z.filter(r=>!r.stamp),S=Z.filter(r=>r.stamp);
+  L.innerHTML=grp('text','Text',T.map(row).join(''))+(S.length?grp('stamps','Stamps',S.map(row).join('')):'')+(pg.paint?grp('paint','Paint',''):'')+grp('clean','Cleaned bubbles','')+
+    `<div class="lrow grp"><span class="icon lb" aria-hidden="true">${ic('lock')}</span><span class="lname g">Page</span></div>`;
+  $('lcount').textContent=regs.length?regs.length+' box'+(regs.length>1?'es':''):'';
+  const R=id=>regs.find(r=>r.id===+id);
+  L.querySelectorAll('[data-geye]').forEach(b=>b.onclick=()=>{const k=b.dataset.geye;LH[k]=!LH[k];try{localStorage.setItem('kars_layh',JSON.stringify(LH))}catch(e){}render();layUI()});
+  L.querySelectorAll('[data-eye]').forEach(b=>b.onclick=()=>{const r=R(b.dataset.eye);checkpoint(r,null,r.hide?'Showed a box':'Hid a box');r.hide=!r.hide;if(r.hide&&regs[sel]===r){sel=-1;markSel()}renderBox(r);layUI()});
+  L.querySelectorAll('[data-lock]').forEach(b=>b.onclick=()=>{const r=R(b.dataset.lock);r.lock=!r.lock;scheduleSave();paint();layUI()});
+  L.querySelectorAll('[data-pickl]').forEach(b=>b.onclick=()=>{const r=R(b.dataset.pickl);if(r.hide)return toast('This box is hidden. Show it first with the eye.',2200);focusBox(r)});
+  const mv=(id,d)=>{const Zf=zs(),r=R(id),i=Zf.indexOf(r),j=i+d;if(j<0||j>=Zf.length)return;[Zf[i],Zf[j]]=[Zf[j],Zf[i]];Zf.forEach((q,k)=>q.z=k);render();layUI()};
+  L.querySelectorAll('[data-zup]').forEach(b=>b.onclick=()=>mv(b.dataset.zup,1));L.querySelectorAll('[data-zdn]').forEach(b=>b.onclick=()=>mv(b.dataset.zdn,-1))}
 /* the wire: a hanging cable between the two windows, with a button in the middle that cuts it */
 function edgePt(el,tx,ty){const s=$('stage').getBoundingClientRect(),r=el.getBoundingClientRect(),cx=r.left-s.left+r.width/2,cy=r.top-s.top+r.height/2,dx=tx-cx,dy=ty-cy;
   const k=Math.min(1,r.width/2/Math.max(Math.abs(dx),1e-6),r.height/2/Math.max(Math.abs(dy),1e-6));return[cx+dx*k,cy+dy*k]}
@@ -2169,20 +2211,20 @@ function trBlend(clean,maskC,W,H){const out=cvs(W,H),x=out.getContext('2d');x.dr
   const soft=cvs(W,H),y=soft.getContext('2d'),g=Math.max(2,Math.round(Math.min(W,H)/160));y.filter=`blur(${g}px)`;for(const [dx,dy] of [[0,0],[g,0],[-g,0],[0,g],[0,-g]])y.drawImage(maskC,dx,dy);
   x.globalCompositeOperation='destination-in';x.drawImage(soft,0,0);return out}
 const TR_SCHEMA={type:'object',properties:{language:{type:'string',enum:[...Object.keys(BYNAME),'Other']},original:{type:'string'},translation:{type:'string'},style:{type:'string',enum:STYLES},
-  font:{type:'string',enum:Object.keys(F)},italic:{type:'boolean'},outline:{type:'boolean'},color:{type:'string'},outline_color:{type:'string'},angle:{type:'number'},weight:{type:'integer',enum:[400,700,900]},caps:{type:'boolean'}},
-  required:['language','original','translation','style','font','italic','outline','color','outline_color','angle','weight','caps'],additionalProperties:false};
+  font:{type:'string',enum:Object.keys(F)},italic:{type:'boolean'},outline:{type:'boolean'},color:{type:'string'},outline_color:{type:'string'},angle:{type:'number'},weight:{type:'integer',enum:[400,700,900]},caps:{type:'boolean'},outline2_color:{type:'string'},shadow:{type:'boolean'},arc:{type:'number'}},
+  required:['language','original','translation','style','font','italic','outline','color','outline_color','angle','weight','caps','outline2_color','shadow','arc'],additionalProperties:false};
 async function trPlace(pg,b,before,area){const hex=v=>/^#[0-9a-f]{6}$/i.test(String(v||'').trim())?String(v).trim().toLowerCase():'';
   const geom={x:Math.max(0,b.x-4),y:Math.max(0,b.y-4)};geom.w=Math.min(src.width-geom.x,b.w+8);geom.h=Math.min(src.height-geom.y,b.h+8);
   const r=newBox(geom,{free:true,style:'sfx',size:Math.max(24,Math.round(geom.h*.8)),status:'Tahrir: reading the original lettering…'});r.st={fit:true};
   pg.regs.push(r);logG({t:'add',box:r,idx:pg.regs.length-1});sel=pg.regs.indexOf(r);listAdd(r);setStatus(r,'Tahrir: reading the original lettering with '+aiName()+'…');renderBox(r);
   if(!usesClaude())return setStatus(r,'The art is cleaned. Type the translation: matching the lettering needs a Claude engine in Settings.');
   try{const show=cvs(area.W,area.H),x=show.getContext('2d');x.putImageData(before,0,0);x.strokeStyle='#e00';x.lineWidth=Math.max(3,area.W/200);x.strokeRect(b.x-area.X,b.y-area.Y,b.w,b.h);
-    const text=`${langLine()}\n${glossLine()}\n\nThe text inside the red outline is lettering drawn on the art (a title, sign, sound effect or similar). It has been removed and will be lettered again in the target language, in the same look. "original" is its exact source text and "translation" your translation (short, like the original). Describe the original lettering so it can be copied: "style" its kind; "font" the available font closest to its look that supports the target language's script; "color" its main fill colour as #rrggbb; "outline" true if the letters have a contrasting outline or halo, and "outline_color" that colour as #rrggbb (or "" if none); "angle" its rotation in degrees from -45 to 45, clockwise positive; "weight" 400, 700 or 900; "italic" true if slanted; "caps" true if it is all capitals. ${STYLE_NOTE}`;
+    const text=`${langLine()}\n${glossLine()}\n\nThe text inside the red outline is lettering drawn on the art (a title, sign, sound effect or similar). It has been removed and will be lettered again in the target language, in the same look. "original" is its exact source text and "translation" your translation (short, like the original). Describe the original lettering so it can be copied: "style" its kind; "font" the available font closest to its look that supports the target language's script; "color" its main fill colour as #rrggbb; "outline" true if the letters have a contrasting outline or halo, and "outline_color" that colour as #rrggbb (or "" if none); "angle" its rotation in degrees from -45 to 45, clockwise positive; "weight" 400, 700 or 900; "italic" true if slanted; "caps" true if it is all capitals; "outline2_color" the colour of a second, outer outline as #rrggbb (or "" if there is only one); "shadow" true if the letters cast a drop shadow; "arc" how much the line of text bends, from -100 (a bowl) to 100 (an arch), 0 if straight. ${STYLE_NOTE}`;
     const o=await askClaude(GUIDE,text,[{label:'part of the page, before cleaning; the lettering to replace is outlined in red',canvas:fitCanvas(show,1400)}],TR_SCHEMA);
     if(!o||typeof o.translation!=='string')throw new Error('no translation came back');if(!pg.regs.includes(r))return;
     const sc=script(),fk=F[o.font]&&F[o.font].s===sc?o.font:null,st={fit:true};
     if(hex(o.color))st.color=hex(o.color);if(o.outline&&hex(o.outline_color))st.ocolor=hex(o.outline_color);if(isFinite(+o.angle)&&Math.abs(+o.angle)>=2)st.angle=clamp(Math.round(+o.angle),-45,45);
-    if([700,900].includes(o.weight))st.weight=o.weight;if(o.caps&&sc==='lat')st.caps=true;
+    if([700,900].includes(o.weight))st.weight=o.weight;if(o.caps&&sc==='lat')st.caps=true;if(o.outline&&hex(o.outline2_color)){st.ow2=6;st.oc2=hex(o.outline2_color)}if(o.shadow){st.sh=6;st.shb=6}if(isFinite(+o.arc)&&Math.abs(+o.arc)>=8)st.arc=clamp(Math.round(+o.arc),-100,100);
     Object.assign(r,{src:String(o.original||''),txt:applyGloss(String(o.translation)),manual:false,style:STYLES.includes(o.style)?o.style:'sfx',match:fk,font:fk||'auto',italic:!!o.italic,outline:!!o.outline,st});
     if(hex(o.color))r.ink=[1,3,5].map(i=>parseInt(st.color.slice(i,i+2),16));
     syncBox(r);setStatus(r,`Tahrir: placed in ${F[fontKey(r)].n}, matched to the original lettering. Review it.`);renderBox(r);list()}
@@ -2195,7 +2237,7 @@ async function tahrirEnd(d){const t=strokeTmp;strokeTmp=null;render();const b=st
     if(!n)return;await healArea(pg,hole,X,Y,W,H,{x:X,y:Y,w:W,h:H},'Tahrir: removed the text');if(pages[cur]===pg&&$('trplace').checked)trPlace(pg,b,before,A);return}
   tahrirBusy=true;toast(`Tahrir: ${trEngineName()} is cleaning the art…`,0);
   try{const crop=cvs(W,H);crop.getContext('2d').putImageData(before,0,0);
-    const clean=eng==='gemini'?await trGemini(crop,maskC,A.ar):await trIopaint(crop,maskC);if(pages[cur]!==pg)return toast('You changed pages, so the cleaned art was not used.',4000);
+    const clean=eng==='gemini'?await trGemini(crop,maskC,A.ar).catch(e=>/sent no image/.test(e.message)?trGemini(crop,maskC,A.ar):Promise.reject(e)):await trIopaint(crop,maskC);if(pages[cur]!==pg)return toast('You changed pages, so the cleaned art was not used.',4000);
     const patch=trBlend(clean,maskC,W,H);sctx.drawImage(patch,X,Y);
     logG({t:'img',pg,x:X,y:Y,w:W,h:H,before,label:'Tahrir: removed the text'});imgChanged(pg,{x:X,y:Y,w:W,h:H});
     toast(`Tahrir: cleaned with ${trEngineName()}. Ctrl+Z undoes it.`,2600);if($('trplace').checked)trPlace(pg,b,before,A)}
@@ -2218,9 +2260,9 @@ function pos(e){const l=local(e);return{x:(l.x-cam.ox)/cam.s,y:(l.y-cam.oy)/cam.
 const px=()=>1/cam.s;
 const ptrs=new Map();let pinch=null,spaceDown=false;
 function cancelDrag(){if(drag&&drag.r){Object.assign(drag.r,drag.g);render()}drag=null}
-function hit(p){const s=regs[sel],t=12*px();
+function hit(p){const s=regs[sel]&&!regs[sel].lock&&!regs[sel].hide?regs[sel]:null,t=12*px();
   if(s)for(const [cx,cy] of [[0,0],[1,0],[0,1],[1,1]])if(Math.abs(p.x-(s.x+cx*s.w))<=t&&Math.abs(p.y-(s.y+cy*s.h))<=t)return{mode:'size',r:s,cx,cy};
-  for(let i=regs.length-1;i>=0;i--){const r=regs[i];if(p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h)return{mode:'move',r}}
+  const Z=zs();for(let i=Z.length-1;i>=0;i--){const r=Z[i];if(r.hide||r.lock)continue;if(p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h)return{mode:'move',r}}
   return null}
 cv.onpointerdown=e=>{if(!loaded)return;pageFocus=false;cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,local(e));
   if(ptrs.size===2){cancelDrag();const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,s:cam.s,ox:cam.ox,oy:cam.oy};return paint()}
@@ -2603,8 +2645,8 @@ $('apply').onclick=()=>{const n=groupEdit(regs,'Applied the glossary',()=>regs.f
 function wrap(x,text,w){const out=[],cjk=$('tgt').value==='ja',sep=cjk?'':' ';for(const p of text.split('\n')){let line='';
   for(const word of cjk?Array.from(p):p.split(' ')){const t=line?line+sep+word:word;if(x.measureText(t).width<=w||!line)line=t;else{out.push(line);line=word}}out.push(line)}return out}
 /* text style per box (r.st): size %, weight, thick(ness), color, outline color/width, letter and line spacing, align, caps, angle, fit */
-const NUM_LIM={size:[5,1000],thick:[0,60],ow:[1,150],ls:[-50,200],lh:[30,400],angle:[-360,360],glow:[0,100]};
-const ST_DEF={size:100,weight:0,thick:0,color:'',ocolor:'',ow:16,ls:0,lh:115,align:'center',caps:false,angle:0,fit:true,vert:false,glow:0,gcolor:'',gon:false,grad:'#d9a441',gdir:'v'};
+const NUM_LIM={size:[5,1000],thick:[0,60],ow:[1,150],ls:[-50,200],lh:[30,400],angle:[-360,360],glow:[0,100],sh:[0,100],shb:[0,100],ow2:[0,80],arc:[-200,200]};
+const ST_DEF={size:100,weight:0,thick:0,color:'',ocolor:'',ow:16,ls:0,lh:115,align:'center',caps:false,angle:0,fit:true,vert:false,glow:0,gcolor:'',gon:false,grad:'#d9a441',gdir:'v',sh:0,shb:0,shc:'',ow2:0,oc2:'',arc:0};
 /* the series' look for this kind of text, if one was saved (see the Series tab) */
 const preset=r=>{const s=serOf(curS);return s&&s.presets&&s.presets[r.style||'normal']||null};
 const stOf=r=>({...ST_DEF,...((preset(r)||{}).st||{}),...(r.st||{})});
@@ -2619,7 +2661,7 @@ function layout(r0,x){const st=stOf(r0),r={...r0,...(r0.lay||{})},{f:fam,w:fw}=F
   const at=s=>{ol=r0.outline?Math.max(1,s*st.ow/100):0;th=s*st.thick/100;const sf=SHAPE_FIT[r0.shape]||1,W=r.w*sf-pad*2-ol-th,H=r.h*sf-pad*2-ol-th;x.font=`${r0.italic?'italic ':''}${wt} ${s}px ${fam}`;
     if(vert){setLS(x,'0px');const adv=s*(1.02+st.ls/100),colW=s*st.lh/100,cols=vcols(txt,Math.max(1,Math.floor(H/adv))),n=Math.max(1,...cols.map(c=>c.length));
       fits=cols.length*colW<=W+1&&n*adv<=H+1;const x0=(cols.length-1)*colW/2,y0=-(n-1)*adv/2;items=[];cols.forEach((c,i)=>c.forEach((ch,j)=>items.push({t:VMAP[ch]||ch,x:x0-i*colW,y:y0+j*adv})))}
-    else{setLS(x,st.ls*s/100+'px');const lines=wrap(x,txt,W),lh=s*st.lh/100,ax=st.align==='left'?-W/2:st.align==='right'?W/2:0,y0=-(lines.length-1)*lh/2;
+    else{setLS(x,lsOf(st,s));const lines=wrap(x,txt,W),lh=s*st.lh/100,ax=st.align==='left'?-W/2:st.align==='right'?W/2:0,y0=-(lines.length-1)*lh/2;
       fits=lines.length*lh<=H&&lines.every(l=>x.measureText(l).width<=W+1);items=lines.map((l,i)=>({t:l,x:ax,y:y0+i*lh}))}
     return fits};
   /* the biggest size that fits: halve the range from the wanted size down, so very big sizes stay quick */
@@ -2633,7 +2675,7 @@ function textGrad(x,L,from){let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinit
 /* where the lettering actually lands on the page (outline, glow and rotation included), so a partial redraw can clear it */
 function textExt(r,x,L){let ax=0,ay=0;const s=L.s;L.items.forEach(it=>{const w=L.vert?s:x.measureText(it.t).width,a=L.vert||L.st.align==='center'?it.x-w/2:L.st.align==='left'?it.x:it.x-w;
     ax=Math.max(ax,Math.abs(a),Math.abs(a+w));ay=Math.max(ay,Math.abs(it.y)+s*.6)});
-  const pad=L.ol+L.th+(L.st.glow?L.st.glow*s/7:0)+4;let hx=ax+pad,hy=ay+pad;if(L.st.angle){hx=hy=Math.hypot(hx,hy)}
+  const pad=L.ol+L.th+(L.st.glow?L.st.glow*s/7:0)+(L.st.ow2?L.st.ow2*s/100:0)+(L.st.sh||L.st.shb?L.st.sh*s/100+L.st.shb*s/25:0)+4;let hx=ax+pad,hy=ay+pad;if(L.st.angle){hx=hy=Math.hypot(hx,hy)}
   r._ext={x0:Math.floor(L.cx-hx),y0:Math.floor(L.cy-hy),x1:Math.ceil(L.cx+hx),y1:Math.ceil(L.cy+hy)}}
 /* average brightness behind a box on the original page (0 black, 255 white), kept until the box moves */
 function bgLum(r){const k=r.x+','+r.y+','+r.w+','+r.h;if(r._bgk===k)return r._bgL;let L=255;
@@ -2643,27 +2685,44 @@ function bgLum(r){const k=r.x+','+r.y+','+r.w+','+r.h;if(r._bgk===k)return r._bg
 /* Auto outline: the opposite of the text colour, unless that would vanish into what is behind the box
    (a white outline on a white bubble): then the colour that stands out from the background */
 const autoOutline=(r,light)=>{const L=bgLum(r);return light?(L<70?'#ffffff':'#111111'):(L>185?'#111111':'#ffffff')};
-function drawText(r0,x){x.direction=$('tgt').value==='ar'?'rtl':'ltr';const L=layout(r0,x),{st,s,ol,th}=L,each=f=>L.items.forEach(it=>f(it.t,it.x,it.y));
-  x.save();x.translate(L.cx,L.cy);if(st.angle)x.rotate(st.angle*Math.PI/180);x.font=L.font;setLS(x,L.vert?'0px':st.ls*s/100+'px');
+/* Arabic letters join, and spacing between them would break the joins, so Arabic text keeps its natural spacing */
+const lsOf=(st,s)=>$('tgt').value==='ar'?'0px':st.ls*s/100+'px';
+function drawText(r0,x){x.direction=$('tgt').value==='ar'?'rtl':'ltr';const L=layout(r0,x),st=L.st;textExt(r0,x,L);
+  /* arc: the text is drawn flat, then thin columns are lifted along a curve, like Photoshop's Warp > Arc. Joined scripts stay joined */
+  if(st.arc){const e=r0._ext,W=e.x1-e.x0,H=e.y1-e.y0,bend=st.arc/100*L.s*1.2;
+    if(W>0&&H>0&&W*H<6e7){const c=document.createElement('canvas');c.width=W;c.height=H;const y=c.getContext('2d');y.direction=x.direction;y.translate(-e.x0,-e.y0);textCore(r0,y,L);
+      const st2=2;for(let i=0;i<W;i+=st2){const u=(i+st2/2)/W*2-1;x.drawImage(c,i,0,st2,H,e.x0+i,e.y0-bend*(1-u*u),st2+.6,H)}
+      r0._ext={x0:e.x0,x1:e.x1,y0:Math.floor(e.y0-Math.max(0,bend)),y1:Math.ceil(e.y1+Math.max(0,-bend))};return}}
+  textCore(r0,x,L)}
+function textCore(r0,x,L){const {st,s,ol,th}=L,each=f=>L.items.forEach(it=>f(it.t,it.x,it.y));
+  x.save();x.translate(L.cx,L.cy);if(st.angle)x.rotate(st.angle*Math.PI/180);x.font=L.font;setLS(x,L.vert?'0px':lsOf(st,s));
   x.textAlign=L.vert?'center':st.align;x.textBaseline='middle';x.lineJoin='round';const fill=st.color||`rgb(${r0.ink})`,light=.299*r0.ink[0]+.587*r0.ink[1]+.114*r0.ink[2]>140;
+  const o2=st.ow2?st.ow2*s/100:0,outer=(ol?ol+th:th)+2*o2;
+  /* drop shadow: the outermost shape is drawn once with a shadow; the letters drawn on top cover the shape itself */
+  if(st.sh||st.shb){x.save();const d=st.sh*s/100;x.shadowColor=st.shc||'rgba(0,0,0,.75)';x.shadowOffsetX=x.shadowOffsetY=d*.7071;x.shadowBlur=st.shb*s/50;x.fillStyle=x.strokeStyle=st.oc2||st.ocolor||fill;
+    if(outer){x.lineWidth=outer;x.strokeStyle=o2?st.oc2||'#000':ol?st.ocolor||autoOutline(r0,light):fill;each((t,a,b)=>x.strokeText(t,a,b))}else{x.fillStyle=fill;each((t,a,b)=>x.fillText(t,a,b))}x.restore()}
   if(st.glow){x.save();x.shadowColor=x.fillStyle=x.strokeStyle=st.gcolor||(light?'rgba(10,10,10,.9)':'rgba(255,255,255,.95)');x.shadowBlur=st.glow*s/14;x.lineWidth=Math.max(1,s/12);
     each((t,a,b)=>{x.strokeText(t,a,b);x.fillText(t,a,b)});x.restore()}  /* glow: a soft halo behind the letters */
+  if(o2){x.strokeStyle=st.oc2||'#000';x.lineWidth=outer;each((t,a,b)=>x.strokeText(t,a,b))}  /* second outline, outside the first */
   if(ol){x.strokeStyle=st.ocolor||autoOutline(r0,light);x.lineWidth=ol+th;each((t,a,b)=>x.strokeText(t,a,b))}
-  const ink=st.gon?textGrad(x,L,fill):fill;textExt(r0,x,L);
+  const ink=st.gon?textGrad(x,L,fill):fill;
   if(th){x.strokeStyle=ink;x.lineWidth=th;each((t,a,b)=>x.strokeText(t,a,b))}  /* thickness: a stroke in the text's own colour */
   x.fillStyle=ink;each((t,a,b)=>x.fillText(t,a,b));x.restore();setLS(x,'0px')}
-function paintLayer(x){const pc=(pages[cur]||{}).paint;
-  regs.forEach(r=>{if(!r.free&&!r.healed&&r.patch&&r.txt.trim()&&!r.editing)x.drawImage(r.patch,r.px,r.py)});  /* a healed box needs no patch: its lettering is gone from the page */
-  if(pc)x.drawImage(pc,0,0);if(strokeTmp){x.save();x.globalAlpha=drag&&drag.heal?.5:drag&&drag.img&&tool==='eraser'?1:pAlpha();x.drawImage(strokeTmp,0,0);x.restore()}
-  regs.forEach(r=>{if(r.stamp)drawStamp(r,x)});
-  regs.forEach(r=>{if(r.txt.trim()&&!r.editing&&(r.free||r.patch))drawText(r,x)})}
+/* layers: whole groups can be hidden (LH), and each box can be hidden, locked and moved up or down (r.z) */
+const LH={text:false,stamps:false,paint:false,clean:false};try{Object.assign(LH,JSON.parse(localStorage.getItem('kars_layh')||'{}'))}catch(e){}
+const zs=()=>regs.map((r,i)=>[r,i]).sort((a,b)=>(a[0].z??a[1])-(b[0].z??b[1])||a[1]-b[1]).map(a=>a[0]);
+function paintLayer(x){const pc=(pages[cur]||{}).paint,Z=zs();
+  if(!LH.clean)regs.forEach(r=>{if(!r.free&&!r.healed&&r.patch&&r.txt.trim()&&!r.editing)x.drawImage(r.patch,r.px,r.py)});  /* a healed box needs no patch: its lettering is gone from the page */
+  if(pc&&!LH.paint)x.drawImage(pc,0,0);if(strokeTmp){x.save();x.globalAlpha=drag&&drag.heal?.5:drag&&drag.img&&tool==='eraser'?1:pAlpha();x.drawImage(strokeTmp,0,0);x.restore()}
+  if(!LH.stamps)Z.forEach(r=>{if(r.stamp&&!r.hide)drawStamp(r,x)});
+  if(!LH.text)Z.forEach(r=>{if(r.txt.trim()&&!r.editing&&!r.hide&&(r.free||r.patch))drawText(r,x)})}
 /* render: the boxes changed, so rebuild the layer on the next frame; paint: only the view or the outlines changed */
 function render(){layerDirty=true;layerParts.length=0;paint();scheduleSave()}
 function setView(orig){showOrig=orig;$('vT').setAttribute('aria-pressed',!orig);$('vO').setAttribute('aria-pressed',orig);paint()}
 $('vT').onclick=()=>setView(false);$('vO').onclick=()=>setView(true);
 
 /* ---------- side panel ---------- */
-function markSel(){$$('.reg').forEach((el,j)=>{el.classList.toggle('sel',j===sel);if(j===sel)el.scrollIntoView({block:'nearest'})});marksUI()}
+function markSel(){$$('.reg').forEach((el,j)=>{el.classList.toggle('sel',j===sel);if(j===sel)el.scrollIntoView({block:'nearest'})});marksUI();layUI()}
 function focusBox(r){sel=regs.indexOf(r);markSel();animateCam(cv.clientWidth/2-(r.x+r.w/2)*cam.s,cv.clientHeight/2-(r.y+r.h/2)*cam.s,cam.s)}
 /* box cards: the font menu and the Text style controls are built on demand (see list) */
 const fontLabel=k=>k==='auto'?'Auto':F[k]?(F[k].custom?'★ ':'')+F[k].n+({ar:' (Arabic)',ko:' (Korean)',ja:' (Japanese)'}[F[k].s]||''):k;
@@ -2682,11 +2741,17 @@ const stgHTML=r=>`
         <span>Rotation</span><input type="range" data-k="angle" min="-180" max="180" step="1" aria-label="Rotation"><input type="number" class="num" data-num="angle" step="1" aria-label="Rotation, exact value">
         <span>Glow</span><input type="range" data-k="glow" min="0" max="60" step="1" aria-label="Glow"><input type="number" class="num" data-num="glow" step="1" aria-label="Glow, exact value">
         <span>Glow colour</span><span class="row2"><input type="color" data-k="gcolor" aria-label="Glow colour"><button type="button" data-reset="gcolor">Auto</button></span>
+        <span>Second outline</span><input type="range" data-k="ow2" min="0" max="30" step="1" aria-label="Second outline width" title="A second outline outside the first, like a sound effect's black edge"><input type="number" class="num" data-num="ow2" step="1" aria-label="Second outline, exact value">
+        <span>2nd outline colour</span><span class="row2"><input type="color" data-k="oc2" aria-label="Second outline colour"><button type="button" data-reset="oc2">Black</button></span>
+        <span>Shadow</span><input type="range" data-k="sh" min="0" max="30" step="1" aria-label="Drop shadow distance" title="Drop shadow: how far it falls, down and to the right"><input type="number" class="num" data-num="sh" step="1" aria-label="Shadow distance, exact value">
+        <span>Shadow blur</span><input type="range" data-k="shb" min="0" max="40" step="1" aria-label="Shadow softness"><input type="number" class="num" data-num="shb" step="1" aria-label="Shadow blur, exact value">
+        <span>Shadow colour</span><span class="row2"><input type="color" data-k="shc" aria-label="Shadow colour"><button type="button" data-reset="shc">Auto</button></span>
+        <span>Arc</span><input type="range" data-k="arc" min="-100" max="100" step="1" aria-label="Arc: bend the text" title="Bend the text into an arch (up) or a bowl (down)"><input type="number" class="num" data-num="arc" step="1" aria-label="Arc, exact value">
         <span>Gradient</span><span class="row2"><label><input type="checkbox" data-k="gon"> On</label><input type="color" data-k="grad" aria-label="Gradient second colour" title="The text fades from its colour into this one"><select data-k="gdir" aria-label="Gradient direction"><option value="v">Top to bottom</option><option value="h">Left to right</option><option value="d">Diagonal</option></select></span>
         <span>Align</span><span class="row2"><span class="seg" role="group" aria-label="Align"><button type="button" data-al="left">Left</button><button type="button" data-al="center">Centre</button><button type="button" data-al="right">Right</button></span></span>
         <span></span><span class="row2"><label><input type="checkbox" data-k="caps"> Capitals</label><label><input type="checkbox" data-k="fit"> Shrink to fit the bubble</label><label><input type="checkbox" data-k="vert"> Vertical (Japanese)</label></span>
         <span></span><span class="row2"><button type="button" data-pset title="Every box of this kind in the series uses this look, unless you change that box">Save as the series style</button><button type="button" data-reset="all">Reset text style</button></span>`;
-function list(focus){const Lc=$('list');Lc.innerHTML='';cardOf.clear();pageBar();$('bcount').hidden=!regs.length;$('bcount').textContent=regs.length;
+function list(focus){const Lc=$('list');Lc.innerHTML='';cardOf.clear();pageBar();layUI();$('bcount').hidden=!regs.length;$('bcount').textContent=regs.length;
   if(!regs.length){Lc.innerHTML=`<div class="emptylist">${loaded?'No boxes on this page yet.<br>Press <b>Find bubbles</b> in the paint tools, or drag over text on the page.':'Open a chapter to start.'}</div>`;return}
   const allF=regs.every(r=>r.fold);Lc.insertAdjacentHTML('beforeend',`<div class="listbar"><small class="mute">${regs.length} box${regs.length>1?'es':''}</small><span class="spacer"></span><button id="cmpct" class="ghost" title="Compact: only the selected box shows all its tools">${Lc.classList.contains('compact')?'Full cards':'Compact'}</button><button id="foldall" class="ghost">${allF?'Show all':'Hide all'}</button></div>`);
   $('foldall').onclick=()=>{regs.forEach(r=>r.fold=!allF);list();scheduleSave()};
@@ -2859,7 +2924,8 @@ async function pageFiles(base){const f=$('xfmt').value,q=+$('xq').value/100;if(f
       pc.width=c.width;pc.height=y1-y0;const x=pc.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,pc.width,pc.height);x.drawImage(c,0,y0,c.width,y1-y0,0,0,c.width,y1-y0);out.push(pc)}}
   const pad=String(out.length).length;return Promise.all(out.map(async(pc,i)=>({name:`${base}-${String(i+1).padStart(pad,'0')}.webp`,blob:await blob(pc,'image/webp')})))}
 $('xq').oninput=()=>$('xqV').textContent=$('xq').value;
-$('export').onclick=async()=>{setView(false);const psd=$('xfmt').value==='psd',b=$('export');
+const hidNote=()=>{if(Object.values(LH).some(Boolean)||pages.some(p=>p.regs.some(r=>r.hide)))toast('Hidden layers are left out of the export, as in Photoshop. Show them in the Layers window to include them.',4000)};
+$('export').onclick=async()=>{setView(false);hidNote();const psd=$('xfmt').value==='psd',b=$('export');
   if(!psd){b.disabled=true;try{const fs=await pageFiles(baseName(pages[cur])+'-kars');
       if(fs.length===1)save(fs[0].blob,fs[0].name);else{const z=new(await needZip())();fs.forEach(f=>z.file(f.name,f.blob));save(await z.generateAsync({type:'blob'}),baseName(pages[cur])+'-kars.zip');toast(`The page was taller than ${WEBP_MAX.toLocaleString()} px, so it was cut into ${fs.length} WebP pieces (in one ZIP).`,5000)}}
     catch(e){toast('Export failed: '+e.message,6000)}finally{b.disabled=!loaded}return}
@@ -2882,18 +2948,18 @@ async function pagePsd(){await needLib('Photoshop');await stampsReady();
   const layers=[];const page=mk(W,H);page.getContext('2d').drawImage(src,0,0);layers.push({name:'Page',canvas:page});
   const P=regs.filter(r=>!r.free&&!r.healed&&r.patch&&r.txt.trim()&&!r.editing);
   if(P.length){const e=clampR({x0:Math.min(...P.map(r=>r.px)),y0:Math.min(...P.map(r=>r.py)),x1:Math.max(...P.map(r=>r.px+r.patch.width)),y1:Math.max(...P.map(r=>r.py+r.patch.height))});
-    if(e){const c=mk(e.x1-e.x0,e.y1-e.y0),x=c.getContext('2d');P.forEach(r=>x.drawImage(r.patch,r.px-e.x0,r.py-e.y0));layers.push({name:'Cleaned bubbles',canvas:c,left:e.x0,top:e.y0})}}
-  if(pg.paint){const t=trimmed(pg.paint,'Paint');if(t)layers.push(t)}
+    if(e){const c=mk(e.x1-e.x0,e.y1-e.y0),x=c.getContext('2d');P.forEach(r=>x.drawImage(r.patch,r.px-e.x0,r.py-e.y0));layers.push({name:'Cleaned bubbles',hidden:LH.clean,canvas:c,left:e.x0,top:e.y0})}}
+  if(pg.paint){const t=trimmed(pg.paint,'Paint');if(t)layers.push({...t,hidden:LH.paint})}
   const S=regs.filter(r=>r.stamp);
-  if(S.length)layers.push({name:'Stamps',opened:true,children:S.map((r,k)=>{const c=mk(r.w,r.h),x=c.getContext('2d');x.translate(-r.x,-r.y);drawStamp(r,x);return{name:`Stamp ${k+1}`,canvas:c,left:r.x,top:r.y}})});
+  if(S.length)layers.push({name:'Stamps',opened:true,children:S.map((r,k)=>{const c=mk(r.w,r.h),x=c.getContext('2d');x.translate(-r.x,-r.y);drawStamp(r,x);return{name:`Stamp ${k+1}`,hidden:!!r.hide,canvas:c,left:r.x,top:r.y}}),hidden:LH.stamps});
   const T=regs.filter(r=>r.txt.trim()&&(r.free||r.patch)),probe=mk(1,1).getContext('2d'),txt=[],edit=[];
   for(const r of T){const no=regs.indexOf(r)+1;drawText(r,probe);const e=clampR(r._ext||{x0:r.x,y0:r.y,x1:r.x+r.w,y1:r.y+r.h});if(!e)continue;
-    const c=mk(e.x1-e.x0,e.y1-e.y0),x=c.getContext('2d');x.translate(-e.x0,-e.y0);drawText(r,x);txt.push({name:`${no} · ${psdName(r)}`,canvas:c,left:e.x0,top:e.y0});
+    const c=mk(e.x1-e.x0,e.y1-e.y0),x=c.getContext('2d');x.translate(-e.x0,-e.y0);drawText(r,x);txt.push({name:`${no} · ${psdName(r)}`,hidden:!!r.hide,canvas:c,left:e.x0,top:e.y0});
     const L=layout(r,probe),st=stOf(r),col=rgbArr(st.color)||r.ink||[17,17,17];
     edit.push({name:`${no} · ${psdName(r)} (editable)`,hidden:true,text:{text:st.caps?r.txt.toUpperCase():r.txt,transform:[1,0,0,1,r.x,r.y],shapeType:'box',boxBounds:[0,0,r.w,r.h],antiAlias:'smooth',
       style:{font:{name:psdFont(r)},fontSize:Math.round(L.s),fillColor:{r:col[0],g:col[1],b:col[2]},fauxItalic:!!r.italic,leading:Math.round(L.s*st.lh/100)},
       paragraphStyle:{justification:st.align==='left'?'left':st.align==='right'?'right':'center'}}})}
-  if(txt.length)layers.push({name:'Translation',opened:true,children:txt});
+  if(txt.length)layers.push({name:'Translation',opened:true,hidden:LH.text,children:txt});
   if(edit.length)layers.push({name:'Editable text (hidden)',opened:false,children:edit});
   const buf=agPsd.writePsd({width:W,height:H,canvas:composite(),children:layers},{invalidateTextLayers:true,generateThumbnail:false});
   return new Blob([buf],{type:'image/vnd.adobe.photoshop'})}
@@ -2906,7 +2972,7 @@ async function exportChapter(){const btn=$('exportall'),back=cur;btn.disabled=tr
     toast(`Exported ${pages.length} pages as ${{png:'lossless PNGs',jpg:'JPGs',webp:'WebPs',psd:'layered PSDs'}[f]}.${files>pages.length?` Tall pages were cut into pieces under ${WEBP_MAX.toLocaleString()} px, ${files} files in all.`:''}`,5000)}
   catch(e){toast('Export failed: '+e.message,6000)}
   finally{exporting=false;await show(back);btn.disabled=false;btn.innerHTML='Export chapter<span class="xf"></span>';xfmtUI()}}
-$('exportall').onclick=()=>{const iss=qaRun();if(iss.some(i=>i.sev==='err'))return qaShow(iss,true);exportChapter()};
+$('exportall').onclick=()=>{hidNote();const iss=qaRun();if(iss.some(i=>i.sev==='err'))return qaShow(iss,true);exportChapter()};
 /* a .kars file is a ZIP with the original page files and project.json, so the group can pass work between translator and proofreader */
 $('saveproj').onclick=async()=>{if(!pages.length)return toast('Nothing to save yet.');
   try{const z=new(await needZip())();pages.forEach(p=>z.file('pages/'+p.id,p.blob));for(const p of pages)if(p.hasPaint){const b=await DB.get('paint:'+p.id).catch(()=>null);if(b)z.file('paint/'+p.id,b)}z.file('project.json',JSON.stringify(projState()));
@@ -3558,7 +3624,7 @@ function iedPlace(){const t=ied.el,r=ied.r;if(!t||!r)return;if(!regs.includes(r)
   Object.assign(t.style,{left:cv.offsetLeft+cam.ox+r.x*s+'px',top:cv.offsetTop+cam.oy+r.y*s+'px',width:r.w*s+'px',height:r.h*s+'px',fontSize:fs+'px',fontFamily:F[fontKey(r)].f,
     borderRadius:r.shape==='oval'?'50%':r.shape==='round'?Math.min(r.w,r.h)*.22*s+'px':'0',fontStyle:r.italic?'italic':'normal',padding:pv+'px '+ph+'px'})}
 cv.addEventListener('dblclick',e=>{if(!loaded)return;const b=cv.getBoundingClientRect(),px=(e.clientX-b.left-cam.ox)/cam.s,py=(e.clientY-b.top-cam.oy)/cam.s;
-  for(let i=regs.length-1;i>=0;i--){const r=regs[i];if(px>=r.x&&px<=r.x+r.w&&py>=r.y&&py<=r.y+r.h){e.preventDefault();iedOpen(r);return}}});
+  for(let i=regs.length-1;i>=0;i--){const r=regs[i];if(r.hide||r.lock)continue;if(px>=r.x&&px<=r.x+r.w&&py>=r.y&&py<=r.y+r.h){e.preventDefault();iedOpen(r);return}}});
 /* ---------- dictionary: Claude, Google's free dictionary, Free Dictionary (English) or Wiktionary, chosen in Settings ---------- */
 let dictField=null;
 document.addEventListener('focusin',e=>{if(e.target.matches('.reg textarea.t,.reg textarea.s'))dictField=e.target});
